@@ -16,7 +16,7 @@ import {
   X,
   ChevronRight,
   MapPin,
-  Factory,
+  Factory, UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,7 @@ const navItems = [
   { href: "/dashboard/insumos", label: "Insumos", icon: Package },
   { href: "/dashboard/fabrica", label: "Fábrica", icon: Factory },
   { href: "/dashboard/reportes", label: "Reportes", icon: BarChart3 },
+  { href: "/dashboard/asistencia", label: "Asistencia", icon: UserCheck },
   { href: "/dashboard/configuracion", label: "Configuración", icon: Settings },
 ];
 
