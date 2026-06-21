@@ -55,6 +55,8 @@ export default function UsuariosPage() {
     nip: "",
     fecha_nacimiento: "",
     domicilio: "",
+    salario_diario: "",
+    tipo_pago: "diario",
   });
 
   useEffect(() => {
@@ -109,6 +111,8 @@ export default function UsuariosPage() {
       nip: form.nip,
       fecha_nacimiento: form.fecha_nacimiento || null,
       domicilio: form.domicilio || null,
+      salario_diario: parseFloat(form.salario_diario) || 0,
+      tipo_pago: form.tipo_pago,
       activo: true,
     });
 
@@ -130,6 +134,8 @@ export default function UsuariosPage() {
       nip: "",
       fecha_nacimiento: "",
       domicilio: "",
+      salario_diario: "",
+      tipo_pago: "diario",
     });
     cargarUsuarios();
   }
@@ -287,7 +293,36 @@ export default function UsuariosPage() {
                   />
                 </div>
               </div>
-
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Salario diario</Label>
+                  <Input
+                    type="number"
+                    value={form.salario_diario}
+                    onChange={(e) =>
+                      setForm({ ...form, salario_diario: e.target.value })
+                    }
+                    placeholder="350.00"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Tipo de pago</Label>
+                  <Select
+                    value={form.tipo_pago}
+                    onValueChange={(v) => setForm({ ...form, tipo_pago: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="diario">Diario</SelectItem>
+                      <SelectItem value="semanal">Semanal</SelectItem>
+                      <SelectItem value="quincenal">Quincenal</SelectItem>
+                      <SelectItem value="mensual">Mensual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <Button
                 className="w-full"
                 onClick={crearUsuario}
@@ -324,6 +359,7 @@ export default function UsuariosPage() {
               <TableHead>Sucursal</TableHead>
               <TableHead>NIP</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>Salario diario</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
@@ -367,6 +403,11 @@ export default function UsuariosPage() {
                   >
                     {u.activo ? "Activo" : "Inactivo"}
                   </span>
+                </TableCell>
+                <TableCell className="text-sm text-gray-500">
+                  {u.salario_diario
+                    ? `$${Number(u.salario_diario).toFixed(2)}`
+                    : "—"}
                 </TableCell>
                 <TableCell>
                   <button
