@@ -16,7 +16,9 @@ import {
   X,
   ChevronRight,
   MapPin,
-  Factory, UserCheck,DollarSign ,
+  Factory,
+  UserCheck,
+  DollarSign,ShoppingCart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +32,8 @@ const navItems = [
   { href: "/dashboard/reportes", label: "Reportes", icon: BarChart3 },
   { href: "/dashboard/asistencia", label: "Asistencia", icon: UserCheck },
   { href: "/dashboard/configuracion", label: "Configuración", icon: Settings },
-  { href: '/dashboard/nomina', label: 'Nómina', icon: DollarSign },
+  { href: "/dashboard/nomina", label: "Nómina", icon: DollarSign },
+  { href: "/dashboard/clientes", label: "Clientes", icon: ShoppingCart },
 ];
 
 export default function DashboardLayout({
