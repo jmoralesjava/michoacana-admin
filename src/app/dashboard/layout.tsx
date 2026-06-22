@@ -65,7 +65,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex overflow-x-hidden">
       {/* Overlay móvil */}
       {sidebarOpen && (
         <div
@@ -149,7 +149,7 @@ export default function DashboardLayout({
       </aside>
 
       {/* Contenido principal */}
-      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen min-w-0 overflow-hidden">
+      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen w-full max-w-full overflow-x-hidden">
         {" "}
         {/* Header móvil */}
         <header className="lg:hidden bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
@@ -161,7 +161,9 @@ export default function DashboardLayout({
           </span>
         </header>
         {/* Página */}
-        <main className="flex-1 p-6 lg:p-8 min-w-0">{children}</main>
+        <main className="flex-1 p-4 lg:p-8 w-full max-w-full overflow-x-hidden">
+          {children}
+        </main>
       </div>
     </div>
   );
