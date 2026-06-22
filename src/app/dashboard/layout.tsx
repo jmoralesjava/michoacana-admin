@@ -20,7 +20,8 @@ import {
   Factory,
   UserCheck,
   DollarSign,
-  ShoppingCart,Receipt,
+  ShoppingCart,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -148,7 +149,8 @@ export default function DashboardLayout({
       </aside>
 
       {/* Contenido principal */}
-      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
+      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen min-w-0 overflow-hidden">
+        {" "}
         {/* Header móvil */}
         <header className="lg:hidden bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
           <button onClick={() => setSidebarOpen(true)}>
@@ -158,9 +160,8 @@ export default function DashboardLayout({
             La Auténtica Michoacana
           </span>
         </header>
-
         {/* Página */}
-        <main className="flex-1 p-6 lg:p-8">{children}</main>
+        <main className="flex-1 p-6 lg:p-8 min-w-0">{children}</main>
       </div>
     </div>
   );
