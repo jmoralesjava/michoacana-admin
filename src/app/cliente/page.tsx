@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-export default function ClienteLoginPage() {
+function ClienteLoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [whatsapp, setWhatsapp] = useState("");
@@ -91,5 +91,19 @@ export default function ClienteLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ClienteLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <p className="text-gray-400 text-sm">Cargando...</p>
+        </div>
+      }
+    >
+      <ClienteLoginContent />
+    </Suspense>
   );
 }
