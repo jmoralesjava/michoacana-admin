@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-
 import { supabase } from "@/lib/supabase";
 import {
   LayoutDashboard,
@@ -14,7 +13,6 @@ import {
   Settings,
   LogOut,
   Menu,
-  X,
   ChevronRight,
   MapPin,
   Factory,
@@ -65,7 +63,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50">
       {/* Overlay móvil */}
       {sidebarOpen && (
         <div
@@ -81,7 +79,6 @@ export default function DashboardLayout({
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
-        {/* Logo */}
         <div className="p-6 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
@@ -96,8 +93,7 @@ export default function DashboardLayout({
           </div>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active =
@@ -123,7 +119,6 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        {/* Usuario */}
         <div className="p-4 border-t border-gray-100">
           <div className="flex items-center gap-3 px-3 py-2 mb-2">
             <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
@@ -149,10 +144,9 @@ export default function DashboardLayout({
       </aside>
 
       {/* Contenido principal */}
-      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen w-full max-w-full overflow-x-hidden">
-        {" "}
+      <div className="lg:ml-64 min-h-screen flex flex-col">
         {/* Header móvil */}
-        <header className="lg:hidden bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+        <header className="lg:hidden bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
           <button onClick={() => setSidebarOpen(true)}>
             <Menu size={20} className="text-gray-600" />
           </button>
@@ -160,10 +154,9 @@ export default function DashboardLayout({
             La Auténtica Michoacana
           </span>
         </header>
+
         {/* Página */}
-        <main className="flex-1 p-4 lg:p-8 w-full max-w-full overflow-x-hidden">
-          {children}
-        </main>
+        <main className="flex-1 p-4 lg:p-8">{children}</main>
       </div>
     </div>
   );
