@@ -335,7 +335,7 @@ export default function UsuariosPage() {
         </Dialog>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden overflow-x-auto">
+      <div className="bg-white rounded-xl border border-gray-100">
         <div className="p-4 border-b border-gray-100">
           <div className="relative">
             <Search
@@ -350,78 +350,79 @@ export default function UsuariosPage() {
             />
           </div>
         </div>
-
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Empleado</TableHead>
-              <TableHead>Rol</TableHead>
-              <TableHead>Sucursal</TableHead>
-              <TableHead>NIP</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Salario diario</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {usuariosFiltrados.map((u) => (
-              <TableRow key={u.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-xs font-semibold text-gray-600">
-                        {u.nombre_completo?.charAt(0)}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {u.nombre_completo} {u.apellido}
-                      </p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={`text-xs font-medium px-2 py-1 rounded-full capitalize ${coloresRol[u.rol] || "bg-gray-50 text-gray-600"}`}
-                  >
-                    {u.rol}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className="text-sm text-gray-600">
-                    {(u.sucursales as any)?.nombre || "—"}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className="text-sm font-mono text-gray-500">
-                    {u.nip || "—"}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={`text-xs font-medium px-2 py-1 rounded-full ${u.activo ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-500"}`}
-                  >
-                    {u.activo ? "Activo" : "Inactivo"}
-                  </span>
-                </TableCell>
-                <TableCell className="text-sm text-gray-500">
-                  {u.salario_diario
-                    ? `$${Number(u.salario_diario).toFixed(2)}`
-                    : "—"}
-                </TableCell>
-                <TableCell>
-                  <button
-                    onClick={() => toggleActivo(u.id, u.activo)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                    title={u.activo ? "Desactivar" : "Activar"}
-                  >
-                    {u.activo ? <UserX size={16} /> : <UserCheck size={16} />}
-                  </button>
-                </TableCell>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Empleado</TableHead>
+                <TableHead>Rol</TableHead>
+                <TableHead>Sucursal</TableHead>
+                <TableHead>NIP</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Salario diario</TableHead>
+                <TableHead></TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {usuariosFiltrados.map((u) => (
+                <TableRow key={u.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs font-semibold text-gray-600">
+                          {u.nombre_completo?.charAt(0)}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {u.nombre_completo} {u.apellido}
+                        </p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`text-xs font-medium px-2 py-1 rounded-full capitalize ${coloresRol[u.rol] || "bg-gray-50 text-gray-600"}`}
+                    >
+                      {u.rol}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm text-gray-600">
+                      {(u.sucursales as any)?.nombre || "—"}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm font-mono text-gray-500">
+                      {u.nip || "—"}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`text-xs font-medium px-2 py-1 rounded-full ${u.activo ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-500"}`}
+                    >
+                      {u.activo ? "Activo" : "Inactivo"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-500">
+                    {u.salario_diario
+                      ? `$${Number(u.salario_diario).toFixed(2)}`
+                      : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      onClick={() => toggleActivo(u.id, u.activo)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      title={u.activo ? "Desactivar" : "Activar"}
+                    >
+                      {u.activo ? <UserX size={16} /> : <UserCheck size={16} />}
+                    </button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );
