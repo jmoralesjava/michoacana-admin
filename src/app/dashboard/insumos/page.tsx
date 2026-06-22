@@ -79,7 +79,6 @@ export default function InsumosPage() {
   async function crearInsumo() {
     if (!form.nombre) return;
     setLoading(true);
-
     const { data: insumo } = await supabase
       .from("insumos")
       .insert({
@@ -94,14 +93,15 @@ export default function InsumosPage() {
 
     if (insumo) {
       for (const sucursal of sucursales) {
-        await supabase.from("inventario_insumos").insert({
-          sucursal_id: sucursal.id,
-          insumo_id: insumo.id,
-          cantidad_actual: 0,
-        });
+        await supabase
+          .from("inventario_insumos")
+          .insert({
+            sucursal_id: sucursal.id,
+            insumo_id: insumo.id,
+            cantidad_actual: 0,
+          });
       }
     }
-
     setLoading(false);
     setDialogInsumo(false);
     setForm({
@@ -171,7 +171,6 @@ export default function InsumosPage() {
                   placeholder="Paleta de mango (producción)"
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>Unidad de consumo *</Label>
@@ -214,7 +213,6 @@ export default function InsumosPage() {
                   </Select>
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>Factor de conversión</Label>
@@ -242,7 +240,6 @@ export default function InsumosPage() {
                   />
                 </div>
               </div>
-
               <Button
                 className="w-full"
                 onClick={crearInsumo}
@@ -270,113 +267,194 @@ export default function InsumosPage() {
 
         {/* CATÁLOGO */}
         <TabsContent value="catalogo">
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Unidad consumo</TableHead>
-                  <TableHead>Unidad compra</TableHead>
-                  <TableHead>Factor</TableHead>
-                  <TableHead>Stock mínimo</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {insumos.map((i) => (
-                  <TableRow key={i.id}>
-                    <TableCell className="font-medium text-gray-900">
-                      {i.nombre}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {i.unidad_medida}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {i.unidad_compra || "—"}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {i.factor_conversion || 1}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {i.stock_minimo} {i.unidad_medida}
-                    </TableCell>
-                    <TableCell>
-                      <button
-                        onClick={() => eliminarInsumo(i.id)}
-                        className="text-gray-300 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </TableCell>
+          <div className="bg-white rounded-xl border border-gray-100">
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Unidad consumo</TableHead>
+                    <TableHead>Unidad compra</TableHead>
+                    <TableHead>Factor</TableHead>
+                    <TableHead>Stock mínimo</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {insumos.map((i) => (
+                    <TableRow key={i.id}>
+                      <TableCell className="font-medium text-gray-900">
+                        {i.nombre}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {i.unidad_medida}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {i.unidad_compra || "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {i.factor_conversion || 1}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {i.stock_minimo} {i.unidad_medida}
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          onClick={() => eliminarInsumo(i.id)}
+                          className="text-gray-300 hover:text-red-500"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="md:hidden divide-y divide-gray-50">
+              {insumos.map((i) => (
+                <div
+                  key={i.id}
+                  className="p-4 flex items-start justify-between"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      {i.nombre}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Consumo: {i.unidad_medida} · Compra:{" "}
+                      {i.unidad_compra || "—"}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      Factor: {i.factor_conversion || 1} · Mín: {i.stock_minimo}{" "}
+                      {i.unidad_medida}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => eliminarInsumo(i.id)}
+                    className="text-gray-300 hover:text-red-500 mt-1"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         </TabsContent>
 
         {/* INVENTARIO POR SUCURSAL */}
         <TabsContent value="inventario">
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Insumo</TableHead>
-                  <TableHead>Sucursal</TableHead>
-                  <TableHead>Stock mínimo</TableHead>
-                  <TableHead>Cantidad actual</TableHead>
-                  <TableHead>Estado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {inventario.map((inv) => {
-                  const insumo = inv.insumos as any;
-                  const sucursal = inv.sucursales as any;
-                  const bajo = inv.cantidad_actual <= insumo?.stock_minimo;
-                  return (
-                    <TableRow
-                      key={inv.id}
-                      className={bajo ? "bg-red-50/30" : ""}
-                    >
-                      <TableCell className="font-medium text-gray-900">
-                        <div className="flex items-center gap-2">
+          <div className="bg-white rounded-xl border border-gray-100">
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Insumo</TableHead>
+                    <TableHead>Sucursal</TableHead>
+                    <TableHead>Stock mínimo</TableHead>
+                    <TableHead>Cantidad actual</TableHead>
+                    <TableHead>Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {inventario.map((inv) => {
+                    const insumo = inv.insumos as any;
+                    const sucursal = inv.sucursales as any;
+                    const bajo = inv.cantidad_actual <= insumo?.stock_minimo;
+                    return (
+                      <TableRow
+                        key={inv.id}
+                        className={bajo ? "bg-red-50/30" : ""}
+                      >
+                        <TableCell className="font-medium text-gray-900">
+                          <div className="flex items-center gap-2">
+                            {bajo && (
+                              <AlertTriangle
+                                size={14}
+                                className="text-red-500 flex-shrink-0"
+                              />
+                            )}
+                            {insumo?.nombre}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-500">
+                          {sucursal?.nombre}
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-500">
+                          {insumo?.stock_minimo} {insumo?.unidad_medida}
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            defaultValue={inv.cantidad_actual}
+                            className="w-28 h-8 text-sm"
+                            onBlur={(e) =>
+                              actualizarStock(inv.id, e.target.value)
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${bajo ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}
+                          >
+                            {bajo ? "Stock bajo" : "OK"}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="md:hidden divide-y divide-gray-50">
+              {inventario.map((inv) => {
+                const insumo = inv.insumos as any;
+                const sucursal = inv.sucursales as any;
+                const bajo = inv.cantidad_actual <= insumo?.stock_minimo;
+                return (
+                  <div
+                    key={inv.id}
+                    className={`p-4 ${bajo ? "bg-red-50/30" : ""}`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <div className="flex items-center gap-1.5">
                           {bajo && (
-                            <AlertTriangle
-                              size={14}
-                              className="text-red-500 flex-shrink-0"
-                            />
+                            <AlertTriangle size={13} className="text-red-500" />
                           )}
-                          {insumo?.nombre}
+                          <p className="text-sm font-medium text-gray-900">
+                            {insumo?.nombre}
+                          </p>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-500">
-                        {sucursal?.nombre}
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-500">
-                        {insumo?.stock_minimo} {insumo?.unidad_medida}
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          defaultValue={inv.cantidad_actual}
-                          className="w-28 h-8 text-sm"
-                          onBlur={(e) =>
-                            actualizarStock(inv.id, e.target.value)
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${bajo ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}
-                        >
-                          {bajo ? "Stock bajo" : "OK"}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {sucursal?.nombre} · Mín: {insumo?.stock_minimo}{" "}
+                          {insumo?.unidad_medida}
+                        </p>
+                      </div>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${bajo ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}
+                      >
+                        {bajo ? "Bajo" : "OK"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">
+                        Cantidad actual:
+                      </span>
+                      <Input
+                        type="number"
+                        defaultValue={inv.cantidad_actual}
+                        className="w-24 h-7 text-sm"
+                        onBlur={(e) => actualizarStock(inv.id, e.target.value)}
+                      />
+                      <span className="text-xs text-gray-400">
+                        {insumo?.unidad_medida}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </TabsContent>
       </Tabs>

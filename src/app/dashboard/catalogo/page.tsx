@@ -28,23 +28,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 export default function CatalogoPage() {
   const [categorias, setCategorias] = useState<any[]>([]);
   const [productos, setProductos] = useState<any[]>([]);
   const [toppings, setToppings] = useState<any[]>([]);
   const [insumos, setInsumos] = useState<any[]>([]);
-
-  // Diálogos
   const [dialogCategoria, setDialogCategoria] = useState(false);
   const [dialogProducto, setDialogProducto] = useState(false);
   const [dialogTopping, setDialogTopping] = useState(false);
   const [dialogReceta, setDialogReceta] = useState(false);
   const [productoReceta, setProductoReceta] = useState<any>(null);
   const [recetaItems, setRecetaItems] = useState<any[]>([]);
-
-  // Forms
   const [formCategoria, setFormCategoria] = useState({
     nombre: "",
     orden: "0",
@@ -85,10 +81,12 @@ export default function CatalogoPage() {
   async function crearCategoria() {
     if (!formCategoria.nombre) return;
     setLoading(true);
-    await supabase.from("categorias").insert({
-      nombre: formCategoria.nombre,
-      orden: parseInt(formCategoria.orden) || 0,
-    });
+    await supabase
+      .from("categorias")
+      .insert({
+        nombre: formCategoria.nombre,
+        orden: parseInt(formCategoria.orden) || 0,
+      });
     setLoading(false);
     setDialogCategoria(false);
     setFormCategoria({ nombre: "", orden: "0" });
@@ -125,10 +123,12 @@ export default function CatalogoPage() {
   async function crearTopping() {
     if (!formTopping.nombre) return;
     setLoading(true);
-    await supabase.from("toppings").insert({
-      nombre: formTopping.nombre,
-      precio_extra: parseFloat(formTopping.precio_extra) || 0,
-    });
+    await supabase
+      .from("toppings")
+      .insert({
+        nombre: formTopping.nombre,
+        precio_extra: parseFloat(formTopping.precio_extra) || 0,
+      });
     setLoading(false);
     setDialogTopping(false);
     setFormTopping({ nombre: "", precio_extra: "" });
@@ -165,14 +165,16 @@ export default function CatalogoPage() {
 
   async function agregarInsumoReceta(insumoId: string, cantidad: number) {
     if (!productoReceta || !insumoId || !cantidad) return;
-    await supabase.from("producto_insumos").upsert(
-      {
-        producto_id: productoReceta.id,
-        insumo_id: insumoId,
-        cantidad_usada: cantidad,
-      },
-      { onConflict: "producto_id,insumo_id" },
-    );
+    await supabase
+      .from("producto_insumos")
+      .upsert(
+        {
+          producto_id: productoReceta.id,
+          insumo_id: insumoId,
+          cantidad_usada: cantidad,
+        },
+        { onConflict: "producto_id,insumo_id" },
+      );
     const { data } = await supabase
       .from("producto_insumos")
       .select("*, insumos(nombre, unidad_medida)")
@@ -327,65 +329,113 @@ export default function CatalogoPage() {
             </Dialog>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Categoría</TableHead>
-                  <TableHead>Precio</TableHead>
-                  <TableHead>Toppings</TableHead>
-                  <TableHead>Variantes</TableHead>
-                  <TableHead>Receta</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {productos.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium text-gray-900">
-                      {p.nombre}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {(p.categorias as any)?.nombre}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      ${Number(p.precio).toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${p.permite_toppings ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}
-                      >
-                        {p.permite_toppings ? "Sí" : "No"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${p.tiene_variantes ? "bg-blue-50 text-blue-700" : "bg-gray-50 text-gray-400"}`}
-                      >
-                        {p.tiene_variantes ? "Sí" : "No"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <button
-                        onClick={() => abrirReceta(p)}
-                        className="text-xs text-blue-600 hover:underline"
-                      >
-                        Ver receta
-                      </button>
-                    </TableCell>
-                    <TableCell>
-                      <button
-                        onClick={() => eliminarProducto(p.id)}
-                        className="text-gray-300 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </TableCell>
+          {/* TABLA DESKTOP */}
+          <div className="bg-white rounded-xl border border-gray-100">
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Categoría</TableHead>
+                    <TableHead>Precio</TableHead>
+                    <TableHead>Toppings</TableHead>
+                    <TableHead>Variantes</TableHead>
+                    <TableHead>Receta</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {productos.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-medium text-gray-900">
+                        {p.nombre}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {(p.categorias as any)?.nombre}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        ${Number(p.precio).toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${p.permite_toppings ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}
+                        >
+                          {p.permite_toppings ? "Sí" : "No"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${p.tiene_variantes ? "bg-blue-50 text-blue-700" : "bg-gray-50 text-gray-400"}`}
+                        >
+                          {p.tiene_variantes ? "Sí" : "No"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          onClick={() => abrirReceta(p)}
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          Ver receta
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          onClick={() => eliminarProducto(p.id)}
+                          className="text-gray-300 hover:text-red-500"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* CARDS MÓVIL */}
+            <div className="md:hidden divide-y divide-gray-50">
+              {productos.map((p) => (
+                <div key={p.id} className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {p.nombre}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {(p.categorias as any)?.nombre}
+                      </p>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      ${Number(p.precio).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    {p.permite_toppings && (
+                      <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
+                        Con toppings
+                      </span>
+                    )}
+                    {p.tiene_variantes && (
+                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                        Con variantes
+                      </span>
+                    )}
+                    <button
+                      onClick={() => abrirReceta(p)}
+                      className="text-xs text-blue-600 ml-auto"
+                    >
+                      Ver receta
+                    </button>
+                    <button
+                      onClick={() => eliminarProducto(p.id)}
+                      className="text-gray-300 hover:text-red-500"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </TabsContent>
 
@@ -443,44 +493,76 @@ export default function CatalogoPage() {
             </Dialog>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Orden</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {categorias.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium text-gray-900">
-                      {c.nombre}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {c.orden}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${c.activa ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}
-                      >
-                        {c.activa ? "Activa" : "Inactiva"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <button
-                        onClick={() => eliminarCategoria(c.id)}
-                        className="text-gray-300 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </TableCell>
+          <div className="bg-white rounded-xl border border-gray-100">
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Orden</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {categorias.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium text-gray-900">
+                        {c.nombre}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {c.orden}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${c.activa ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}
+                        >
+                          {c.activa ? "Activa" : "Inactiva"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          onClick={() => eliminarCategoria(c.id)}
+                          className="text-gray-300 hover:text-red-500"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="md:hidden divide-y divide-gray-50">
+              {categorias.map((c) => (
+                <div
+                  key={c.id}
+                  className="p-4 flex items-center justify-between"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      {c.nombre}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Orden: {c.orden}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full ${c.activa ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}
+                    >
+                      {c.activa ? "Activa" : "Inactiva"}
+                    </span>
+                    <button
+                      onClick={() => eliminarCategoria(c.id)}
+                      className="text-gray-300 hover:text-red-500"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </TabsContent>
 
@@ -538,44 +620,76 @@ export default function CatalogoPage() {
             </Dialog>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Precio extra</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {toppings.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell className="font-medium text-gray-900">
-                      {t.nombre}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      ${Number(t.precio_extra).toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${t.activo ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}
-                      >
-                        {t.activo ? "Activo" : "Inactivo"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <button
-                        onClick={() => eliminarTopping(t.id)}
-                        className="text-gray-300 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </TableCell>
+          <div className="bg-white rounded-xl border border-gray-100">
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Precio extra</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {toppings.map((t) => (
+                    <TableRow key={t.id}>
+                      <TableCell className="font-medium text-gray-900">
+                        {t.nombre}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        ${Number(t.precio_extra).toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${t.activo ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}
+                        >
+                          {t.activo ? "Activo" : "Inactivo"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          onClick={() => eliminarTopping(t.id)}
+                          className="text-gray-300 hover:text-red-500"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="md:hidden divide-y divide-gray-50">
+              {toppings.map((t) => (
+                <div
+                  key={t.id}
+                  className="p-4 flex items-center justify-between"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      {t.nombre}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      +${Number(t.precio_extra).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full ${t.activo ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}
+                    >
+                      {t.activo ? "Activo" : "Inactivo"}
+                    </span>
+                    <button
+                      onClick={() => eliminarTopping(t.id)}
+                      className="text-gray-300 hover:text-red-500"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </TabsContent>
       </Tabs>
