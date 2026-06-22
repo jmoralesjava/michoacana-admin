@@ -270,7 +270,7 @@ export default function InsumosPage() {
 
         {/* CATÁLOGO */}
         <TabsContent value="catalogo">
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -317,7 +317,7 @@ export default function InsumosPage() {
 
         {/* INVENTARIO POR SUCURSAL */}
         <TabsContent value="inventario">
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>

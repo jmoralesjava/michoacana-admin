@@ -327,7 +327,7 @@ export default function CatalogoPage() {
             </Dialog>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -443,7 +443,7 @@ export default function CatalogoPage() {
             </Dialog>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -538,7 +538,7 @@ export default function CatalogoPage() {
             </Dialog>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>

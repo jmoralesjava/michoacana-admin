@@ -335,7 +335,7 @@ export default function UsuariosPage() {
         </Dialog>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden overflow-x-auto">
         <div className="p-4 border-b border-gray-100">
           <div className="relative">
             <Search
