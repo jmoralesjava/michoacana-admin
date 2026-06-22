@@ -57,7 +57,11 @@ export default function CatalogoPage() {
     precio_extra: "",
   });
   const [loading, setLoading] = useState(false);
-
+  const [variantes, setVariantes] = useState<any[]>([]);
+  const [varianteActiva, setVarianteActiva] = useState<string | null>(null);
+  const [recetaVarianteItems, setRecetaVarianteItems] = useState<any[]>([]);
+  const [dialogVariante, setDialogVariante] = useState(false);
+  const [formVariante, setFormVariante] = useState({ nombre: "", precio: "" });
   useEffect(() => {
     cargarTodo();
   }, []);
@@ -81,18 +85,96 @@ export default function CatalogoPage() {
   async function crearCategoria() {
     if (!formCategoria.nombre) return;
     setLoading(true);
-    await supabase
-      .from("categorias")
-      .insert({
-        nombre: formCategoria.nombre,
-        orden: parseInt(formCategoria.orden) || 0,
-      });
+    await supabase.from("categorias").insert({
+      nombre: formCategoria.nombre,
+      orden: parseInt(formCategoria.orden) || 0,
+    });
     setLoading(false);
     setDialogCategoria(false);
     setFormCategoria({ nombre: "", orden: "0" });
     cargarTodo();
   }
+  async function abrirReceta(producto: any) {
+    setProductoReceta(producto);
+    setVarianteActiva(null);
+    setRecetaVarianteItems([]);
 
+    const [receta, vars] = await Promise.all([
+      supabase
+        .from("producto_insumos")
+        .select("*, insumos(nombre, unidad_medida)")
+        .eq("producto_id", producto.id),
+      supabase
+        .from("producto_variantes")
+        .select("*")
+        .eq("producto_id", producto.id)
+        .order("orden"),
+    ]);
+
+    setRecetaItems(receta.data || []);
+    setVariantes(vars.data || []);
+    setDialogReceta(true);
+  }
+
+  async function cargarRecetaVariante(varianteId: string) {
+    setVarianteActiva(varianteId);
+    const { data } = await supabase
+      .from("variante_insumos")
+      .select("*, insumos(nombre, unidad_medida)")
+      .eq("variante_id", varianteId);
+    setRecetaVarianteItems(data || []);
+  }
+
+  async function agregarInsumoVariante(insumoId: string, cantidad: number) {
+    if (!varianteActiva || !insumoId || !cantidad) return;
+    await supabase.from("variante_insumos").upsert(
+      {
+        variante_id: varianteActiva,
+        insumo_id: insumoId,
+        cantidad_usada: cantidad,
+      },
+      { onConflict: "variante_id,insumo_id" },
+    );
+    cargarRecetaVariante(varianteActiva);
+  }
+
+  async function eliminarInsumoVariante(id: string) {
+    await supabase.from("variante_insumos").delete().eq("id", id);
+    if (varianteActiva) cargarRecetaVariante(varianteActiva);
+  }
+
+  async function crearVariante() {
+    if (!formVariante.nombre || !formVariante.precio || !productoReceta) return;
+    await supabase.from("producto_variantes").insert({
+      producto_id: productoReceta.id,
+      nombre: formVariante.nombre,
+      precio: parseFloat(formVariante.precio),
+      orden: variantes.length + 1,
+    });
+    setFormVariante({ nombre: "", precio: "" });
+    setDialogVariante(false);
+    const { data } = await supabase
+      .from("producto_variantes")
+      .select("*")
+      .eq("producto_id", productoReceta.id)
+      .order("orden");
+    setVariantes(data || []);
+  }
+
+  async function eliminarVariante(id: string) {
+    if (!confirm("¿Eliminar esta variante y su receta?")) return;
+    await supabase.from("producto_variantes").delete().eq("id", id);
+    if (varianteActiva === id) {
+      setVarianteActiva(null);
+      setRecetaVarianteItems([]);
+    }
+    const { data } = await supabase
+      .from("producto_variantes")
+      .select("*")
+      .eq("producto_id", productoReceta.id)
+      .order("orden");
+    setVariantes(data || []);
+  }
   async function crearProducto() {
     if (
       !formProducto.nombre ||
@@ -123,12 +205,10 @@ export default function CatalogoPage() {
   async function crearTopping() {
     if (!formTopping.nombre) return;
     setLoading(true);
-    await supabase
-      .from("toppings")
-      .insert({
-        nombre: formTopping.nombre,
-        precio_extra: parseFloat(formTopping.precio_extra) || 0,
-      });
+    await supabase.from("toppings").insert({
+      nombre: formTopping.nombre,
+      precio_extra: parseFloat(formTopping.precio_extra) || 0,
+    });
     setLoading(false);
     setDialogTopping(false);
     setFormTopping({ nombre: "", precio_extra: "" });
@@ -153,28 +233,18 @@ export default function CatalogoPage() {
     cargarTodo();
   }
 
-  async function abrirReceta(producto: any) {
-    setProductoReceta(producto);
-    const { data } = await supabase
-      .from("producto_insumos")
-      .select("*, insumos(nombre, unidad_medida)")
-      .eq("producto_id", producto.id);
-    setRecetaItems(data || []);
-    setDialogReceta(true);
-  }
+ 
 
   async function agregarInsumoReceta(insumoId: string, cantidad: number) {
     if (!productoReceta || !insumoId || !cantidad) return;
-    await supabase
-      .from("producto_insumos")
-      .upsert(
-        {
-          producto_id: productoReceta.id,
-          insumo_id: insumoId,
-          cantidad_usada: cantidad,
-        },
-        { onConflict: "producto_id,insumo_id" },
-      );
+    await supabase.from("producto_insumos").upsert(
+      {
+        producto_id: productoReceta.id,
+        insumo_id: insumoId,
+        cantidad_usada: cantidad,
+      },
+      { onConflict: "producto_id,insumo_id" },
+    );
     const { data } = await supabase
       .from("producto_insumos")
       .select("*, insumos(nombre, unidad_medida)")
@@ -696,42 +766,199 @@ export default function CatalogoPage() {
 
       {/* MODAL RECETA */}
       <Dialog open={dialogReceta} onOpenChange={setDialogReceta}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Receta — {productoReceta?.nombre}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <RecetaForm insumos={insumos} onAgregar={agregarInsumoReceta} />
-            <div className="space-y-2">
-              {recetaItems.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">
-                  Sin insumos en la receta
+
+          <div className="space-y-6">
+            {/* RECETA BASE (sin variantes) */}
+            {!productoReceta?.tiene_variantes && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-3">
+                  Insumos del producto
                 </p>
-              ) : (
-                recetaItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between py-2 border-b border-gray-50"
-                  >
-                    <span className="text-sm text-gray-900">
-                      {(item.insumos as any)?.nombre}
-                    </span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm text-gray-500">
-                        {item.cantidad_usada}{" "}
-                        {(item.insumos as any)?.unidad_medida}
-                      </span>
-                      <button
-                        onClick={() => eliminarInsumoReceta(item.id)}
-                        className="text-gray-300 hover:text-red-500"
+                <RecetaForm insumos={insumos} onAgregar={agregarInsumoReceta} />
+                <div className="mt-3 space-y-2">
+                  {recetaItems.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-4">
+                      Sin insumos en la receta
+                    </p>
+                  ) : (
+                    recetaItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between py-2 border-b border-gray-50"
                       >
-                        <Trash2 size={14} />
-                      </button>
+                        <span className="text-sm text-gray-900">
+                          {(item.insumos as any)?.nombre}
+                        </span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-gray-500">
+                            {item.cantidad_usada}{" "}
+                            {(item.insumos as any)?.unidad_medida}
+                          </span>
+                          <button
+                            onClick={() => eliminarInsumoReceta(item.id)}
+                            className="text-gray-300 hover:text-red-500"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* VARIANTES Y SUS RECETAS */}
+            {productoReceta?.tiene_variantes && (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-medium text-gray-700">Variantes</p>
+                  <Dialog
+                    open={dialogVariante}
+                    onOpenChange={setDialogVariante}
+                  >
+                    <DialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 h-7 text-xs"
+                      >
+                        <Plus size={12} />
+                        Nueva variante
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-sm">
+                      <DialogHeader>
+                        <DialogTitle>Nueva variante</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 pt-2">
+                        <div className="space-y-1.5">
+                          <Label>Nombre *</Label>
+                          <Input
+                            value={formVariante.nombre}
+                            onChange={(e) =>
+                              setFormVariante({
+                                ...formVariante,
+                                nombre: e.target.value,
+                              })
+                            }
+                            placeholder="Chica, Mediana, Grande..."
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Precio *</Label>
+                          <Input
+                            type="number"
+                            value={formVariante.precio}
+                            onChange={(e) =>
+                              setFormVariante({
+                                ...formVariante,
+                                precio: e.target.value,
+                              })
+                            }
+                            placeholder="28.00"
+                          />
+                        </div>
+                        <Button className="w-full" onClick={crearVariante}>
+                          Crear variante
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
+                {variantes.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">
+                    Sin variantes — crea una para agregar su receta
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {/* SELECTOR DE VARIANTE */}
+                    <div className="flex gap-2 flex-wrap">
+                      {variantes.map((v) => (
+                        <button
+                          key={v.id}
+                          onClick={() => cargarRecetaVariante(v.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                            varianteActiva === v.id
+                              ? "bg-gray-900 text-white border-gray-900"
+                              : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                          }`}
+                        >
+                          {v.nombre} — ${Number(v.precio).toFixed(2)}
+                        </button>
+                      ))}
                     </div>
+
+                    {/* RECETA DE LA VARIANTE ACTIVA */}
+                    {varianteActiva && (
+                      <div className="border border-gray-100 rounded-xl p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-sm font-medium text-gray-700">
+                            Receta:{" "}
+                            {
+                              variantes.find((v) => v.id === varianteActiva)
+                                ?.nombre
+                            }
+                          </p>
+                          <button
+                            onClick={() => {
+                              if (!confirm("¿Eliminar esta variante?")) return;
+                              eliminarVariante(varianteActiva);
+                            }}
+                            className="text-gray-300 hover:text-red-500"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+
+                        <RecetaForm
+                          insumos={insumos}
+                          onAgregar={agregarInsumoVariante}
+                        />
+
+                        <div className="mt-3 space-y-2">
+                          {recetaVarianteItems.length === 0 ? (
+                            <p className="text-sm text-gray-400 text-center py-3">
+                              Sin insumos en esta variante
+                            </p>
+                          ) : (
+                            recetaVarianteItems.map((item) => (
+                              <div
+                                key={item.id}
+                                className="flex items-center justify-between py-2 border-b border-gray-50"
+                              >
+                                <span className="text-sm text-gray-900">
+                                  {(item.insumos as any)?.nombre}
+                                </span>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-sm text-gray-500">
+                                    {item.cantidad_usada}{" "}
+                                    {(item.insumos as any)?.unidad_medida}
+                                  </span>
+                                  <button
+                                    onClick={() =>
+                                      eliminarInsumoVariante(item.id)
+                                    }
+                                    className="text-gray-300 hover:text-red-500"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
