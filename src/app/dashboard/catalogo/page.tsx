@@ -19,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -32,6 +31,7 @@ import { Plus, Trash2 } from "lucide-react";
 
 export default function CatalogoPage() {
   const [esMobil, setEsMobil] = useState(false);
+  const [tabActiva, setTabActiva] = useState("productos");
   const [categorias, setCategorias] = useState<any[]>([]);
   const [productos, setProductos] = useState<any[]>([]);
   const [toppings, setToppings] = useState<any[]>([]);
@@ -285,21 +285,30 @@ export default function CatalogoPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="productos">
-        <TabsList className="mb-6">
-          <TabsTrigger value="productos">
-            Productos ({productos.length})
-          </TabsTrigger>
-          <TabsTrigger value="categorias">
-            Categorías ({categorias.length})
-          </TabsTrigger>
-          <TabsTrigger value="toppings">
-            Extras / Toppings ({toppings.length})
-          </TabsTrigger>
-        </TabsList>
+      {/* TABS MANUALES */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-6 w-fit">
+        {[
+          { id: "productos", label: `Productos (${productos.length})` },
+          { id: "categorias", label: `Categorías (${categorias.length})` },
+          { id: "toppings", label: `Extras (${toppings.length})` },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setTabActiva(tab.id)}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              tabActiva === tab.id
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        {/* PRODUCTOS */}
-        <TabsContent value="productos">
+      {/* PRODUCTOS */}
+      {tabActiva === "productos" && (
+        <div>
           <div className="flex justify-end mb-4">
             <Dialog open={dialogProducto} onOpenChange={setDialogProducto}>
               <DialogTrigger asChild>
@@ -522,10 +531,12 @@ export default function CatalogoPage() {
               </div>
             )}
           </div>
-        </TabsContent>
+        </div>
+      )}
 
-        {/* CATEGORÍAS */}
-        <TabsContent value="categorias">
+      {/* CATEGORÍAS */}
+      {tabActiva === "categorias" && (
+        <div>
           <div className="flex justify-end mb-4">
             <Dialog open={dialogCategoria} onOpenChange={setDialogCategoria}>
               <DialogTrigger asChild>
@@ -652,10 +663,12 @@ export default function CatalogoPage() {
               </div>
             )}
           </div>
-        </TabsContent>
+        </div>
+      )}
 
-        {/* TOPPINGS */}
-        <TabsContent value="toppings">
+      {/* TOPPINGS */}
+      {tabActiva === "toppings" && (
+        <div>
           <div className="flex justify-end mb-4">
             <Dialog open={dialogTopping} onOpenChange={setDialogTopping}>
               <DialogTrigger asChild>
@@ -782,8 +795,8 @@ export default function CatalogoPage() {
               </div>
             )}
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
 
       {/* MODAL RECETA */}
       <Dialog open={dialogReceta} onOpenChange={setDialogReceta}>
