@@ -5,7 +5,6 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -194,7 +193,6 @@ export default function UsuariosPage() {
                   />
                 </div>
               </div>
-
               <div className="space-y-1.5">
                 <Label>Correo electrónico *</Label>
                 <Input
@@ -204,7 +202,6 @@ export default function UsuariosPage() {
                   placeholder="juan@paleteria.com"
                 />
               </div>
-
               <div className="space-y-1.5">
                 <Label>Contraseña *</Label>
                 <Input
@@ -216,7 +213,6 @@ export default function UsuariosPage() {
                   placeholder="Mínimo 6 caracteres"
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>Rol *</Label>
@@ -251,7 +247,6 @@ export default function UsuariosPage() {
                   />
                 </div>
               </div>
-
               <div className="space-y-1.5">
                 <Label>Sucursal</Label>
                 <Select
@@ -270,7 +265,6 @@ export default function UsuariosPage() {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>Fecha de nacimiento</Label>
@@ -350,7 +344,9 @@ export default function UsuariosPage() {
             />
           </div>
         </div>
-        <div className="overflow-x-auto">
+
+        {/* TABLA EN DESKTOP */}
+        <div className="hidden md:block overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -373,11 +369,9 @@ export default function UsuariosPage() {
                           {u.nombre_completo?.charAt(0)}
                         </span>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {u.nombre_completo} {u.apellido}
-                        </p>
-                      </div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {u.nombre_completo} {u.apellido}
+                      </p>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -387,15 +381,11 @@ export default function UsuariosPage() {
                       {u.rol}
                     </span>
                   </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-gray-600">
-                      {(u.sucursales as any)?.nombre || "—"}
-                    </span>
+                  <TableCell className="text-sm text-gray-600">
+                    {(u.sucursales as any)?.nombre || "—"}
                   </TableCell>
-                  <TableCell>
-                    <span className="text-sm font-mono text-gray-500">
-                      {u.nip || "—"}
-                    </span>
+                  <TableCell className="text-sm font-mono text-gray-500">
+                    {u.nip || "—"}
                   </TableCell>
                   <TableCell>
                     <span
@@ -412,8 +402,7 @@ export default function UsuariosPage() {
                   <TableCell>
                     <button
                       onClick={() => toggleActivo(u.id, u.activo)}
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
-                      title={u.activo ? "Desactivar" : "Activar"}
+                      className="text-gray-400 hover:text-gray-600"
                     >
                       {u.activo ? <UserX size={16} /> : <UserCheck size={16} />}
                     </button>
@@ -422,6 +411,59 @@ export default function UsuariosPage() {
               ))}
             </TableBody>
           </Table>
+        </div>
+
+        {/* CARDS EN MÓVIL */}
+        <div className="md:hidden divide-y divide-gray-50">
+          {usuariosFiltrados.map((u) => (
+            <div key={u.id} className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-semibold text-gray-600">
+                    {u.nombre_completo?.charAt(0)}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {u.nombre_completo} {u.apellido}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${coloresRol[u.rol] || "bg-gray-50 text-gray-600"}`}
+                    >
+                      {u.rol}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {(u.sucursales as any)?.nombre}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs font-mono text-gray-400">
+                      PIN: {u.nip}
+                    </span>
+                    {u.salario_diario > 0 && (
+                      <span className="text-xs text-gray-400">
+                        ${Number(u.salario_diario).toFixed(2)}/día
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <span
+                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${u.activo ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-500"}`}
+                >
+                  {u.activo ? "Activo" : "Inactivo"}
+                </span>
+                <button
+                  onClick={() => toggleActivo(u.id, u.activo)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  {u.activo ? <UserX size={16} /> : <UserCheck size={16} />}
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
