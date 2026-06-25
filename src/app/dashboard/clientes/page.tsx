@@ -61,7 +61,13 @@ export default function ClientesPage() {
     descuento_porcentaje: "",
     descripcion: "",
   });
-
+  const [editandoCategoria, setEditandoCategoria] = useState<any>(null);
+  const [dialogEditarCategoria, setDialogEditarCategoria] = useState(false);
+  const [formEditarCategoria, setFormEditarCategoria] = useState({
+    nombre: "",
+    descuento_porcentaje: "",
+    descripcion: "",
+  });
   useEffect(() => {
     const check = () => setEsMobil(window.innerWidth < 768);
     check();
@@ -95,7 +101,23 @@ export default function ClientesPage() {
     if (cat.data) setCategorias(cat.data);
     if (sucs.data) setSucursales(sucs.data);
   }
-
+  async function guardarCategoria() {
+    if (!editandoCategoria || !formEditarCategoria.nombre) return;
+    setLoading(true);
+    await supabase
+      .from("categorias_cliente")
+      .update({
+        nombre: formEditarCategoria.nombre,
+        descuento_porcentaje:
+          parseFloat(formEditarCategoria.descuento_porcentaje) || 0,
+        descripcion: formEditarCategoria.descripcion || null,
+      })
+      .eq("id", editandoCategoria.id);
+    setLoading(false);
+    setDialogEditarCategoria(false);
+    setEditandoCategoria(null);
+    cargarTodo();
+  }
   async function crearCliente() {
     if (!formCliente.nombre || !formCliente.whatsapp) return;
     setLoading(true);
@@ -657,7 +679,7 @@ export default function ClientesPage() {
       {/* CATEGORÍAS */}
       {tabActiva === "categorias" && (
         <div>
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-end mb-4 gap-2">
             <Dialog open={dialogCategoria} onOpenChange={setDialogCategoria}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
@@ -722,6 +744,67 @@ export default function ClientesPage() {
             </Dialog>
           </div>
 
+          {/* Dialog editar categoría */}
+          <Dialog
+            open={dialogEditarCategoria}
+            onOpenChange={(v) => {
+              setDialogEditarCategoria(v);
+              if (!v) setEditandoCategoria(null);
+            }}
+          >
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Editar — {editandoCategoria?.nombre}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-1.5">
+                  <Label>Nombre *</Label>
+                  <Input
+                    value={formEditarCategoria.nombre}
+                    onChange={(e) =>
+                      setFormEditarCategoria({
+                        ...formEditarCategoria,
+                        nombre: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Descuento %</Label>
+                  <Input
+                    type="number"
+                    value={formEditarCategoria.descuento_porcentaje}
+                    onChange={(e) =>
+                      setFormEditarCategoria({
+                        ...formEditarCategoria,
+                        descuento_porcentaje: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Descripción</Label>
+                  <Input
+                    value={formEditarCategoria.descripcion}
+                    onChange={(e) =>
+                      setFormEditarCategoria({
+                        ...formEditarCategoria,
+                        descripcion: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={guardarCategoria}
+                  disabled={loading}
+                >
+                  {loading ? "Guardando..." : "Guardar cambios"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <div
             style={{
               display: "grid",
@@ -736,9 +819,26 @@ export default function ClientesPage() {
               >
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-gray-900">{cat.nombre}</h3>
-                  <span className="text-lg font-bold text-green-600">
-                    -{cat.descuento_porcentaje}%
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-green-600">
+                      -{cat.descuento_porcentaje}%
+                    </span>
+                    <button
+                      onClick={() => {
+                        setEditandoCategoria(cat);
+                        setFormEditarCategoria({
+                          nombre: cat.nombre,
+                          descuento_porcentaje:
+                            cat.descuento_porcentaje?.toString() || "0",
+                          descripcion: cat.descripcion || "",
+                        });
+                        setDialogEditarCategoria(true);
+                      }}
+                      className="text-gray-300 hover:text-gray-600"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  </div>
                 </div>
                 <p className="text-sm text-gray-400">
                   {cat.descripcion || "Sin descripción"}
