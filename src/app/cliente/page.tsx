@@ -90,6 +90,14 @@ function ClienteLoginContent() {
           </p>
         </div>
       </div>
+      <div className="flex flex-col items-center gap-1.5 mt-6 pt-5 border-t border-gray-100">
+        <p className="text-xs text-gray-300">Desarrollado por</p>
+        <img
+          src="/bridge-logo.png"
+          alt="Bridge Solutions"
+          className="h-5 opacity-35 hover:opacity-60 transition-opacity"
+        />
+      </div>
     </div>
   );
 }
