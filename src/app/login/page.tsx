@@ -102,16 +102,17 @@ export default function LoginPage() {
               {loading ? "Iniciando sesión..." : "Iniciar sesión"}
             </Button>
           </form>
+
+          {/* Branding */}
+          <div className="flex flex-col items-center gap-1.5 mt-8 pt-6 border-t border-gray-100">
+            <p className="text-xs text-gray-300">Desarrollado por</p>
+            <img
+              src="/bridge_solutions_logo_v2.png"
+              alt="Bridge Solutions"
+              className="h-6 opacity-50 hover:opacity-80 transition-opacity"
+            />
+          </div>
         </div>
-      </div>
-      {/* Desarrollado por Bridge Solutions */}
-      <div className="flex flex-col items-center gap-1.5 mt-8 pt-6 border-t border-gray-100">
-        <p className="text-xs text-gray-300">Desarrollado por</p>
-        <img
-          src="/bridge-logo.png"
-          alt="Bridge Solutions"
-          className="h-6 opacity-40 hover:opacity-70 transition-opacity"
-        />
       </div>
     </div>
   );
