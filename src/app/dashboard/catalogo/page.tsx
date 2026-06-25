@@ -27,7 +27,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
+
+const formVacio = {
+  nombre: "",
+  categoria_id: "",
+  precio: "",
+  permite_toppings: "false",
+  tiene_variantes: "false",
+  presentacion_nombre: "",
+  presentacion_cantidad: "",
+};
 
 export default function CatalogoPage() {
   const [esMobil, setEsMobil] = useState(false);
@@ -42,19 +52,12 @@ export default function CatalogoPage() {
   const [dialogReceta, setDialogReceta] = useState(false);
   const [productoReceta, setProductoReceta] = useState<any>(null);
   const [recetaItems, setRecetaItems] = useState<any[]>([]);
+  const [editandoProducto, setEditandoProducto] = useState<any>(null);
   const [formCategoria, setFormCategoria] = useState({
     nombre: "",
     orden: "0",
   });
-  const [formProducto, setFormProducto] = useState({
-    nombre: "",
-    categoria_id: "",
-    precio: "",
-    permite_toppings: "false",
-    tiene_variantes: "false",
-    presentacion_nombre: "",
-    presentacion_cantidad: "",
-  });
+  const [formProducto, setFormProducto] = useState(formVacio);
   const [formTopping, setFormTopping] = useState({
     nombre: "",
     precio_extra: "",
@@ -128,6 +131,20 @@ export default function CatalogoPage() {
     setDialogReceta(true);
   }
 
+  function abrirEditar(producto: any) {
+    setEditandoProducto(producto);
+    setFormProducto({
+      nombre: producto.nombre,
+      categoria_id: producto.categoria_id,
+      precio: producto.precio?.toString() || "",
+      permite_toppings: producto.permite_toppings ? "true" : "false",
+      tiene_variantes: producto.tiene_variantes ? "true" : "false",
+      presentacion_nombre: producto.presentacion_nombre || "",
+      presentacion_cantidad: producto.presentacion_cantidad?.toString() || "",
+    });
+    setDialogProducto(true);
+  }
+
   async function cargarRecetaVariante(varianteId: string) {
     setVarianteActiva(varianteId);
     const { data } = await supabase
@@ -190,7 +207,7 @@ export default function CatalogoPage() {
     setVariantes(data || []);
   }
 
-  async function crearProducto() {
+  async function guardarProducto() {
     if (
       !formProducto.nombre ||
       !formProducto.categoria_id ||
@@ -198,7 +215,8 @@ export default function CatalogoPage() {
     )
       return;
     setLoading(true);
-    await supabase.from("productos").insert({
+
+    const payload = {
       nombre: formProducto.nombre,
       categoria_id: formProducto.categoria_id,
       precio: parseFloat(formProducto.precio),
@@ -207,18 +225,21 @@ export default function CatalogoPage() {
       presentacion_nombre: formProducto.presentacion_nombre || null,
       presentacion_cantidad:
         parseInt(formProducto.presentacion_cantidad) || null,
-    });
+    };
+
+    if (editandoProducto) {
+      await supabase
+        .from("productos")
+        .update(payload)
+        .eq("id", editandoProducto.id);
+    } else {
+      await supabase.from("productos").insert(payload);
+    }
+
     setLoading(false);
     setDialogProducto(false);
-    setFormProducto({
-      nombre: "",
-      categoria_id: "",
-      precio: "",
-      permite_toppings: "false",
-      tiene_variantes: "false",
-      presentacion_nombre: "",
-      presentacion_cantidad: "",
-    });
+    setEditandoProducto(null);
+    setFormProducto(formVacio);
     cargarTodo();
   }
 
@@ -283,6 +304,161 @@ export default function CatalogoPage() {
     setRecetaItems(data || []);
   }
 
+  const formDialog = (
+    <Dialog
+      open={dialogProducto}
+      onOpenChange={(v) => {
+        setDialogProducto(v);
+        if (!v) {
+          setEditandoProducto(null);
+          setFormProducto(formVacio);
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button className="gap-2">
+          <Plus size={16} />
+          Nuevo producto
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {editandoProducto ? "Editar producto" : "Nuevo producto"}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <Label>Nombre *</Label>
+            <Input
+              value={formProducto.nombre}
+              onChange={(e) =>
+                setFormProducto({ ...formProducto, nombre: e.target.value })
+              }
+              placeholder="Paleta de mango"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Categoría *</Label>
+            <Select
+              value={formProducto.categoria_id}
+              onValueChange={(v) =>
+                setFormProducto({ ...formProducto, categoria_id: v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona una categoría" />
+              </SelectTrigger>
+              <SelectContent>
+                {categorias.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Precio por pieza *</Label>
+            <Input
+              type="number"
+              value={formProducto.precio}
+              onChange={(e) =>
+                setFormProducto({ ...formProducto, precio: e.target.value })
+              }
+              placeholder="28.00"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>¿Permite toppings?</Label>
+              <Select
+                value={formProducto.permite_toppings}
+                onValueChange={(v) =>
+                  setFormProducto({ ...formProducto, permite_toppings: v })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">Sí</SelectItem>
+                  <SelectItem value="false">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>¿Tiene variantes?</Label>
+              <Select
+                value={formProducto.tiene_variantes}
+                onValueChange={(v) =>
+                  setFormProducto({ ...formProducto, tiene_variantes: v })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">Sí</SelectItem>
+                  <SelectItem value="false">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="border-t border-gray-100 pt-4">
+            <p className="text-xs font-medium text-gray-500 mb-3 uppercase tracking-wide">
+              Presentación (opcional)
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Nombre</Label>
+                <Input
+                  value={formProducto.presentacion_nombre}
+                  onChange={(e) =>
+                    setFormProducto({
+                      ...formProducto,
+                      presentacion_nombre: e.target.value,
+                    })
+                  }
+                  placeholder="Caja, Paquete, Kg..."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Piezas incluidas</Label>
+                <Input
+                  type="number"
+                  value={formProducto.presentacion_cantidad}
+                  onChange={(e) =>
+                    setFormProducto({
+                      ...formProducto,
+                      presentacion_cantidad: e.target.value,
+                    })
+                  }
+                  placeholder="24"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              Ej: "Caja" con 24 piezas → el cliente puede pedir por pieza o por
+              caja
+            </p>
+          </div>
+          <Button
+            className="w-full"
+            onClick={guardarProducto}
+            disabled={loading}
+          >
+            {loading
+              ? "Guardando..."
+              : editandoProducto
+                ? "Guardar cambios"
+                : "Crear producto"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   return (
     <div>
       <div className="mb-8">
@@ -292,7 +468,6 @@ export default function CatalogoPage() {
         </p>
       </div>
 
-      {/* TABS MANUALES */}
       <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-6 w-fit">
         {[
           { id: "productos", label: `Productos (${productos.length})` },
@@ -302,11 +477,7 @@ export default function CatalogoPage() {
           <button
             key={tab.id}
             onClick={() => setTabActiva(tab.id)}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              tabActiva === tab.id
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tabActiva === tab.id ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"}`}
           >
             {tab.label}
           </button>
@@ -316,160 +487,7 @@ export default function CatalogoPage() {
       {/* PRODUCTOS */}
       {tabActiva === "productos" && (
         <div>
-          <div className="flex justify-end mb-4">
-            <Dialog open={dialogProducto} onOpenChange={setDialogProducto}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus size={16} />
-                  Nuevo producto
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Nuevo producto</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 pt-2">
-                  <div className="space-y-1.5">
-                    <Label>Nombre *</Label>
-                    <Input
-                      value={formProducto.nombre}
-                      onChange={(e) =>
-                        setFormProducto({
-                          ...formProducto,
-                          nombre: e.target.value,
-                        })
-                      }
-                      placeholder="Paleta de mango"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Categoría *</Label>
-                    <Select
-                      value={formProducto.categoria_id}
-                      onValueChange={(v) =>
-                        setFormProducto({ ...formProducto, categoria_id: v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona una categoría" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categorias.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Precio por pieza *</Label>
-                    <Input
-                      type="number"
-                      value={formProducto.precio}
-                      onChange={(e) =>
-                        setFormProducto({
-                          ...formProducto,
-                          precio: e.target.value,
-                        })
-                      }
-                      placeholder="28.00"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label>¿Permite toppings?</Label>
-                      <Select
-                        value={formProducto.permite_toppings}
-                        onValueChange={(v) =>
-                          setFormProducto({
-                            ...formProducto,
-                            permite_toppings: v,
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="true">Sí</SelectItem>
-                          <SelectItem value="false">No</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>¿Tiene variantes?</Label>
-                      <Select
-                        value={formProducto.tiene_variantes}
-                        onValueChange={(v) =>
-                          setFormProducto({
-                            ...formProducto,
-                            tiene_variantes: v,
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="true">Sí</SelectItem>
-                          <SelectItem value="false">No</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* PRESENTACIÓN */}
-                  <div className="border-t border-gray-100 pt-4">
-                    <p className="text-xs font-medium text-gray-500 mb-3 uppercase tracking-wide">
-                      Presentación (opcional)
-                    </p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <Label>Nombre</Label>
-                        <Input
-                          value={formProducto.presentacion_nombre}
-                          onChange={(e) =>
-                            setFormProducto({
-                              ...formProducto,
-                              presentacion_nombre: e.target.value,
-                            })
-                          }
-                          placeholder="Caja, Paquete, Kg..."
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Piezas incluidas</Label>
-                        <Input
-                          type="number"
-                          value={formProducto.presentacion_cantidad}
-                          onChange={(e) =>
-                            setFormProducto({
-                              ...formProducto,
-                              presentacion_cantidad: e.target.value,
-                            })
-                          }
-                          placeholder="24"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-2">
-                      Ej: "Caja" con 24 piezas → el cliente puede pedir por
-                      pieza o por caja
-                    </p>
-                  </div>
-
-                  <Button
-                    className="w-full"
-                    onClick={crearProducto}
-                    disabled={loading}
-                  >
-                    {loading ? "Guardando..." : "Crear producto"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
+          <div className="flex justify-end mb-4">{formDialog}</div>
 
           <div className="bg-white rounded-xl border border-gray-100">
             {!esMobil ? (
@@ -527,12 +545,20 @@ export default function CatalogoPage() {
                           </button>
                         </TableCell>
                         <TableCell>
-                          <button
-                            onClick={() => eliminarProducto(p.id)}
-                            className="text-gray-300 hover:text-red-500"
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => abrirEditar(p)}
+                              className="text-gray-300 hover:text-gray-600"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={() => eliminarProducto(p.id)}
+                              className="text-gray-300 hover:text-red-500"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -578,6 +604,12 @@ export default function CatalogoPage() {
                         className="text-xs text-blue-600 ml-auto"
                       >
                         Ver receta
+                      </button>
+                      <button
+                        onClick={() => abrirEditar(p)}
+                        className="text-gray-300 hover:text-gray-600"
+                      >
+                        <Pencil size={14} />
                       </button>
                       <button
                         onClick={() => eliminarProducto(p.id)}
@@ -973,11 +1005,7 @@ export default function CatalogoPage() {
                         <button
                           key={v.id}
                           onClick={() => cargarRecetaVariante(v.id)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                            varianteActiva === v.id
-                              ? "bg-gray-900 text-white border-gray-900"
-                              : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-                          }`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${varianteActiva === v.id ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
                         >
                           {v.nombre} — ${Number(v.precio).toFixed(2)}
                         </button>
