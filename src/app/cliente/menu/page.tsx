@@ -59,16 +59,21 @@ export default function ClienteMenuPage() {
     return precio - (precio * descuento) / 100;
   }
 
-  function agregarAlCarrito(producto: any, variante: any = null) {
+  function agregarAlCarrito(
+    producto: any,
+    variante: any = null,
+    cantidadInicial: number = 1,
+  ) {
     const precio = variante ? Number(variante.precio) : Number(producto.precio);
     const precioFinal = precioConDescuento(precio);
     const id = `${producto.id}-${variante?.id || "base"}`;
+    const espresentacion = cantidadInicial > 1;
 
     setCarrito((prev) => {
       const existente = prev.find((i) => i.id === id);
       if (existente) {
         return prev.map((i) =>
-          i.id === id ? { ...i, cantidad: i.cantidad + 1 } : i,
+          i.id === id ? { ...i, cantidad: i.cantidad + cantidadInicial } : i,
         );
       }
       return [
@@ -79,9 +84,16 @@ export default function ClienteMenuPage() {
           variante_id: variante?.id || null,
           nombre: producto.nombre,
           variante_nombre: variante?.nombre || null,
-          cantidad: 1,
+          cantidad: cantidadInicial,
           precio_unitario: precio,
           precio_con_descuento: precioFinal,
+          es_presentacion: espresentacion,
+          presentacion_nombre: espresentacion
+            ? producto.presentacion_nombre
+            : null,
+          presentacion_cantidad: espresentacion
+            ? producto.presentacion_cantidad
+            : null,
         },
       ];
     });
@@ -306,12 +318,26 @@ export default function ClienteMenuPage() {
                         ))}
                       </div>
                     ) : (
-                      <button
-                        onClick={() => agregarAlCarrito(p)}
-                        className="mt-2 w-full bg-gray-900 text-white rounded-lg py-1.5 text-xs font-medium"
-                      >
-                        Agregar
-                      </button>
+                      <div className="mt-2 space-y-1">
+                        <button
+                          onClick={() => agregarAlCarrito(p)}
+                          className="w-full bg-gray-900 text-white rounded-lg py-1.5 text-xs font-medium"
+                        >
+                          + Pieza — ${precioFinal.toFixed(2)}
+                        </button>
+                        {p.presentacion_nombre && p.presentacion_cantidad && (
+                          <button
+                            onClick={() =>
+                              agregarAlCarrito(p, null, p.presentacion_cantidad)
+                            }
+                            className="w-full bg-gray-100 text-gray-700 rounded-lg py-1.5 text-xs font-medium"
+                          >
+                            + {p.presentacion_nombre} ({p.presentacion_cantidad}{" "}
+                            pzas) — $
+                            {(precioFinal * p.presentacion_cantidad).toFixed(2)}
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -356,6 +382,9 @@ export default function ClienteMenuPage() {
                   <p className="text-sm font-medium text-gray-900">
                     {item.nombre}
                     {item.variante_nombre ? ` — ${item.variante_nombre}` : ""}
+                    {item.es_presentacion
+                      ? ` (${item.presentacion_nombre})`
+                      : ""}
                   </p>
                   <p className="text-xs text-gray-400">
                     ${item.precio_con_descuento.toFixed(2)} c/u
