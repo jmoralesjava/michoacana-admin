@@ -107,6 +107,37 @@ export default function ClienteMenuPage() {
     if (carrito.length === 0) return;
     setEnviando(true);
 
+    // Solicitar ubicación
+    let latitud = null;
+    let longitud = null;
+
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          timeout: 8000,
+          enableHighAccuracy: true,
+        });
+      });
+      latitud = pos.coords.latitude;
+      longitud = pos.coords.longitude;
+
+      // Actualizar coordenadas del cliente
+      await supabase
+        .from("clientes")
+        .update({ latitud, longitud })
+        .eq("id", cliente.id);
+
+      // Actualizar sesión local
+      const sessionActualizada = { ...cliente, latitud, longitud };
+      localStorage.setItem(
+        "cliente_session",
+        JSON.stringify(sessionActualizada),
+      );
+      setCliente(sessionActualizada);
+    } catch {
+      // Si no da permiso continuamos sin coordenadas
+    }
+
     const { data: pedido, error } = await supabase
       .from("pedidos_cliente")
       .insert({
@@ -139,6 +170,7 @@ export default function ClienteMenuPage() {
     setEnviando(false);
     setPedidoEnviado(true);
     setCarrito([]);
+    setNotas("");
     setVerCarrito(false);
   }
 
@@ -373,7 +405,7 @@ export default function ClienteMenuPage() {
                 disabled={enviando}
                 className="w-full bg-gray-900 text-white rounded-xl py-3.5 text-sm font-semibold disabled:opacity-50"
               >
-                {enviando ? "Enviando..." : "Enviar pedido"}
+                {enviando ? "Enviando..." : "Enviar pedido 📍"}
               </button>
               <button
                 onClick={() => setVerCarrito(false)}
