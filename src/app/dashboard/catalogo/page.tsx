@@ -52,6 +52,8 @@ export default function CatalogoPage() {
     precio: "",
     permite_toppings: "false",
     tiene_variantes: "false",
+    presentacion_nombre: "",
+    presentacion_cantidad: "",
   });
   const [formTopping, setFormTopping] = useState({
     nombre: "",
@@ -202,6 +204,9 @@ export default function CatalogoPage() {
       precio: parseFloat(formProducto.precio),
       permite_toppings: formProducto.permite_toppings === "true",
       tiene_variantes: formProducto.tiene_variantes === "true",
+      presentacion_nombre: formProducto.presentacion_nombre || null,
+      presentacion_cantidad:
+        parseInt(formProducto.presentacion_cantidad) || null,
     });
     setLoading(false);
     setDialogProducto(false);
@@ -211,6 +216,8 @@ export default function CatalogoPage() {
       precio: "",
       permite_toppings: "false",
       tiene_variantes: "false",
+      presentacion_nombre: "",
+      presentacion_cantidad: "",
     });
     cargarTodo();
   }
@@ -317,7 +324,7 @@ export default function CatalogoPage() {
                   Nuevo producto
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Nuevo producto</DialogTitle>
                 </DialogHeader>
@@ -356,7 +363,7 @@ export default function CatalogoPage() {
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Precio *</Label>
+                    <Label>Precio por pieza *</Label>
                     <Input
                       type="number"
                       value={formProducto.precio}
@@ -411,6 +418,47 @@ export default function CatalogoPage() {
                       </Select>
                     </div>
                   </div>
+
+                  {/* PRESENTACIÓN */}
+                  <div className="border-t border-gray-100 pt-4">
+                    <p className="text-xs font-medium text-gray-500 mb-3 uppercase tracking-wide">
+                      Presentación (opcional)
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label>Nombre</Label>
+                        <Input
+                          value={formProducto.presentacion_nombre}
+                          onChange={(e) =>
+                            setFormProducto({
+                              ...formProducto,
+                              presentacion_nombre: e.target.value,
+                            })
+                          }
+                          placeholder="Caja, Paquete, Kg..."
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Piezas incluidas</Label>
+                        <Input
+                          type="number"
+                          value={formProducto.presentacion_cantidad}
+                          onChange={(e) =>
+                            setFormProducto({
+                              ...formProducto,
+                              presentacion_cantidad: e.target.value,
+                            })
+                          }
+                          placeholder="24"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      Ej: "Caja" con 24 piezas → el cliente puede pedir por
+                      pieza o por caja
+                    </p>
+                  </div>
+
                   <Button
                     className="w-full"
                     onClick={crearProducto}
@@ -432,6 +480,7 @@ export default function CatalogoPage() {
                       <TableHead>Nombre</TableHead>
                       <TableHead>Categoría</TableHead>
                       <TableHead>Precio</TableHead>
+                      <TableHead>Presentación</TableHead>
                       <TableHead>Toppings</TableHead>
                       <TableHead>Variantes</TableHead>
                       <TableHead>Receta</TableHead>
@@ -449,6 +498,11 @@ export default function CatalogoPage() {
                         </TableCell>
                         <TableCell className="text-sm">
                           ${Number(p.precio).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-500">
+                          {p.presentacion_nombre && p.presentacion_cantidad
+                            ? `${p.presentacion_nombre} (${p.presentacion_cantidad} pzas)`
+                            : "—"}
                         </TableCell>
                         <TableCell>
                           <span
@@ -502,7 +556,7 @@ export default function CatalogoPage() {
                         ${Number(p.precio).toFixed(2)}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
                       {p.permite_toppings && (
                         <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
                           Con toppings
@@ -511,6 +565,12 @@ export default function CatalogoPage() {
                       {p.tiene_variantes && (
                         <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
                           Con variantes
+                        </span>
+                      )}
+                      {p.presentacion_nombre && p.presentacion_cantidad && (
+                        <span className="text-xs bg-gray-50 text-gray-500 px-2 py-0.5 rounded-full">
+                          {p.presentacion_nombre}: {p.presentacion_cantidad}{" "}
+                          pzas
                         </span>
                       )}
                       <button
