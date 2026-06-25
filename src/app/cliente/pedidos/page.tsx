@@ -10,15 +10,50 @@ const coloresEstado: Record<string, string> = {
   aprobado: "bg-green-50 text-green-700",
   rechazado: "bg-red-50 text-red-700",
   en_camino: "bg-purple-50 text-purple-700",
+  en_ruta: "bg-indigo-50 text-indigo-700",
   entregado_parcial: "bg-orange-50 text-orange-700",
   entregado: "bg-gray-50 text-gray-600",
 };
+
+const etiquetasEstado: Record<string, string> = {
+  enviado: "Enviado",
+  revisado: "En revisión",
+  aprobado: "Aprobado",
+  rechazado: "Rechazado",
+  en_camino: "Listo para recoger",
+  en_ruta: "En camino a ti",
+  entregado_parcial: "Entrega parcial",
+  entregado: "Entregado",
+};
+
+function QRCode({ value }: { value: string }) {
+  const [qrUrl, setQrUrl] = useState("");
+
+  useEffect(() => {
+    setQrUrl(
+      `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(value)}&bgcolor=ffffff&color=1a1a1a&margin=10`,
+    );
+  }, [value]);
+
+  if (!qrUrl) return null;
+
+  return (
+    <div className="flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-xl mt-3">
+      <p className="text-xs text-gray-500 font-medium">
+        Muestra este QR al repartidor
+      </p>
+      <img src={qrUrl} alt={`QR ${value}`} className="w-32 h-32 rounded-lg" />
+      <p className="text-sm font-bold text-gray-900 tracking-widest">{value}</p>
+    </div>
+  );
+}
 
 export default function ClientePedidosPage() {
   const router = useRouter();
   const [cliente, setCliente] = useState<any>(null);
   const [pedidos, setPedidos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pedidoQR, setPedidoQR] = useState<string | null>(null);
 
   useEffect(() => {
     const session = localStorage.getItem("cliente_session");
@@ -40,6 +75,8 @@ export default function ClientePedidosPage() {
     if (data) setPedidos(data);
     setLoading(false);
   }
+
+  const estadosConQR = ["aprobado", "en_camino", "en_ruta"];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -72,19 +109,26 @@ export default function ClientePedidosPage() {
               className="bg-white rounded-2xl border border-gray-100 p-4"
             >
               <div className="flex items-center justify-between mb-3">
-                <p className="text-xs text-gray-400">
-                  {new Date(p.created_at).toLocaleDateString("es-MX", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </p>
+                <div>
+                  <p className="text-xs text-gray-400">
+                    {new Date(p.created_at).toLocaleDateString("es-MX", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                  {p.folio && (
+                    <p className="text-xs font-bold text-gray-700 mt-0.5 tracking-wider">
+                      #{p.folio}
+                    </p>
+                  )}
+                </div>
                 <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${coloresEstado[p.estado] || "bg-gray-50 text-gray-500"}`}
+                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${coloresEstado[p.estado] || "bg-gray-50 text-gray-500"}`}
                 >
-                  {p.estado.replace("_", " ")}
+                  {etiquetasEstado[p.estado] || p.estado.replace("_", " ")}
                 </span>
               </div>
 
@@ -120,6 +164,30 @@ export default function ClientePedidosPage() {
                 <p className="text-xs text-green-600 bg-green-50 rounded-lg p-2 mt-3">
                   📋 {p.notas_fabrica}
                 </p>
+              )}
+
+              {/* QR DEL PEDIDO */}
+              {estadosConQR.includes(p.estado) && p.folio && (
+                <div>
+                  {pedidoQR === p.id ? (
+                    <div>
+                      <QRCode value={p.folio} />
+                      <button
+                        onClick={() => setPedidoQR(null)}
+                        className="w-full text-xs text-gray-400 mt-2 py-1"
+                      >
+                        Ocultar QR
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setPedidoQR(p.id)}
+                      className="w-full mt-3 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-medium"
+                    >
+                      Ver QR para entrega
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           ))
