@@ -39,6 +39,27 @@ const formVacio = {
   presentacion_cantidad: "",
 };
 
+function reducirImagen(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 600;
+      const escala = Math.min(1, max / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * escala);
+      canvas.height = Math.round(img.height * escala);
+      canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error("No se pudo procesar"))),
+        "image/jpeg",
+        0.8,
+      );
+    };
+    img.onerror = () => reject(new Error("Imagen no válida"));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 export default function CatalogoPage() {
   const [esMobil, setEsMobil] = useState(false);
   const [tabActiva, setTabActiva] = useState("productos");
@@ -53,6 +74,8 @@ export default function CatalogoPage() {
   const [productoReceta, setProductoReceta] = useState<any>(null);
   const [recetaItems, setRecetaItems] = useState<any[]>([]);
   const [editandoProducto, setEditandoProducto] = useState<any>(null);
+  const [imagenArchivo, setImagenArchivo] = useState<File | null>(null);
+  const [imagenPreview, setImagenPreview] = useState("");
   const [formCategoria, setFormCategoria] = useState({
     nombre: "",
     orden: "0",
@@ -133,6 +156,8 @@ export default function CatalogoPage() {
 
   function abrirEditar(producto: any) {
     setEditandoProducto(producto);
+    setImagenArchivo(null);
+    setImagenPreview(producto.imagen_url || "");
     setFormProducto({
       nombre: producto.nombre,
       categoria_id: producto.categoria_id,
@@ -216,7 +241,7 @@ export default function CatalogoPage() {
       return;
     setLoading(true);
 
-    const payload = {
+    const payload: any = {
       nombre: formProducto.nombre,
       categoria_id: formProducto.categoria_id,
       precio: parseFloat(formProducto.precio),
@@ -227,19 +252,45 @@ export default function CatalogoPage() {
         parseInt(formProducto.presentacion_cantidad) || null,
     };
 
-    if (editandoProducto) {
-      await supabase
-        .from("productos")
-        .update(payload)
-        .eq("id", editandoProducto.id);
-    } else {
-      await supabase.from("productos").insert(payload);
+    if (imagenArchivo) {
+      try {
+        const blob = await reducirImagen(imagenArchivo);
+        const ruta = `${crypto.randomUUID()}.jpg`;
+        const { error: errorSubida } = await supabase.storage
+          .from("productos")
+          .upload(ruta, blob, { contentType: "image/jpeg" });
+        if (errorSubida) throw errorSubida;
+        payload.imagen_url = supabase.storage
+          .from("productos")
+          .getPublicUrl(ruta).data.publicUrl;
+      } catch (e: any) {
+        setLoading(false);
+        alert(`No se pudo subir la imagen: ${e.message}`);
+        return;
+      }
+    } else if (!imagenPreview) {
+      payload.imagen_url = null;
+    }
+
+    const { error: errorGuardar } = editandoProducto
+      ? await supabase
+          .from("productos")
+          .update(payload)
+          .eq("id", editandoProducto.id)
+      : await supabase.from("productos").insert(payload);
+
+    if (errorGuardar) {
+      setLoading(false);
+      alert(`No se pudo guardar: ${errorGuardar.message}`);
+      return;
     }
 
     setLoading(false);
     setDialogProducto(false);
     setEditandoProducto(null);
     setFormProducto(formVacio);
+    setImagenArchivo(null);
+    setImagenPreview("");
     cargarTodo();
   }
 
@@ -312,6 +363,8 @@ export default function CatalogoPage() {
         if (!v) {
           setEditandoProducto(null);
           setFormProducto(formVacio);
+          setImagenArchivo(null);
+          setImagenPreview("");
         }
       }}
     >
@@ -443,6 +496,45 @@ export default function CatalogoPage() {
               caja
             </p>
           </div>
+          <div className="border-t border-gray-100 pt-4">
+            <p className="text-xs font-medium text-gray-500 mb-3 uppercase tracking-wide">
+              Imagen (opcional)
+            </p>
+            <div className="flex items-center gap-4">
+              {imagenPreview ? (
+                <img
+                  src={imagenPreview}
+                  alt=""
+                  className="h-20 w-20 rounded-lg object-cover border border-gray-100"
+                />
+              ) : (
+                <div className="h-20 w-20 rounded-lg bg-gray-50 border border-dashed border-gray-200" />
+              )}
+              <div className="flex-1 space-y-2">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const archivo = e.target.files?.[0] || null;
+                    setImagenArchivo(archivo);
+                    if (archivo) setImagenPreview(URL.createObjectURL(archivo));
+                  }}
+                />
+                {imagenPreview && (
+                  <button
+                    type="button"
+                    className="text-xs text-red-500"
+                    onClick={() => {
+                      setImagenArchivo(null);
+                      setImagenPreview("");
+                    }}
+                  >
+                    Quitar imagen
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
           <Button
             className="w-full"
             onClick={guardarProducto}
@@ -509,7 +601,18 @@ export default function CatalogoPage() {
                     {productos.map((p) => (
                       <TableRow key={p.id}>
                         <TableCell className="font-medium text-gray-900">
-                          {p.nombre}
+                          <div className="flex items-center gap-3">
+                            {p.imagen_url ? (
+                              <img
+                                src={p.imagen_url}
+                                alt=""
+                                className="h-9 w-9 rounded-md object-cover"
+                              />
+                            ) : (
+                              <div className="h-9 w-9 rounded-md bg-gray-100" />
+                            )}
+                            {p.nombre}
+                          </div>
                         </TableCell>
                         <TableCell className="text-sm text-gray-500">
                           {(p.categorias as any)?.nombre}
