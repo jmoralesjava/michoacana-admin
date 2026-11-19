@@ -27,15 +27,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search, UserCheck, UserX, Clock } from "lucide-react";
+import { Plus, Search, UserCheck, UserX, Clock, Pencil } from "lucide-react";
 
-const ROLES = ["vendedor", "cajero", "supervisor", "administrador"];
+const ROLES = [
+  "vendedor",
+  "cajero",
+  "supervisor",
+  "administrador",
+  "fabrica",
+  "repartidor",
+];
 
 const coloresRol: Record<string, string> = {
   vendedor: "bg-blue-50 text-blue-700",
   cajero: "bg-purple-50 text-purple-700",
   supervisor: "bg-amber-50 text-amber-700",
   administrador: "bg-green-50 text-green-700",
+  fabrica: "bg-teal-50 text-teal-700",
+  repartidor: "bg-orange-50 text-orange-700",
 };
 
 export default function UsuariosPage() {
@@ -45,6 +54,18 @@ export default function UsuariosPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [usuarioHorario, setUsuarioHorario] = useState<any>(null);
+  const [usuarioEditando, setUsuarioEditando] = useState<any>(null);
+  const [formEdit, setFormEdit] = useState({
+    nombre_completo: "",
+    apellido: "",
+    rol: "vendedor",
+    sucursal_id: "",
+    nip: "",
+    fecha_nacimiento: "",
+    domicilio: "",
+    salario_diario: "",
+    tipo_pago: "diario",
+  });
   const [horario, setHorario] = useState({
     hora_entrada: "",
     hora_salida: "",
@@ -143,6 +164,73 @@ export default function UsuariosPage() {
       salario_diario: "",
       tipo_pago: "diario",
     });
+    cargarUsuarios();
+  }
+
+  function abrirEdicion(u: any) {
+    setUsuarioEditando(u);
+    setFormEdit({
+      nombre_completo: u.nombre_completo || "",
+      apellido: u.apellido || "",
+      rol: u.rol || "vendedor",
+      sucursal_id: u.sucursal_id || "",
+      nip: u.nip || "",
+      fecha_nacimiento: u.fecha_nacimiento || "",
+      domicilio: u.domicilio || "",
+      salario_diario: u.salario_diario != null ? String(u.salario_diario) : "",
+      tipo_pago: u.tipo_pago || "diario",
+    });
+  }
+
+  async function guardarEdicion() {
+    if (!usuarioEditando) return;
+    if (!formEdit.nombre_completo.trim()) {
+      alert("El nombre es obligatorio");
+      return;
+    }
+    if (formEdit.nip.length !== 6) {
+      alert("El NIP debe tener 6 dígitos");
+      return;
+    }
+
+    setLoading(true);
+    const { data: repetido } = await supabase
+      .from("perfiles")
+      .select("id")
+      .eq("nip", formEdit.nip)
+      .neq("id", usuarioEditando.id)
+      .limit(1);
+
+    if (repetido && repetido.length > 0) {
+      setLoading(false);
+      alert("Ese NIP ya lo usa otro empleado");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("perfiles")
+      .update({
+        nombre_completo: formEdit.nombre_completo.trim(),
+        apellido: formEdit.apellido.trim() || null,
+        rol: formEdit.rol,
+        sucursal_id: formEdit.sucursal_id || null,
+        nip: formEdit.nip,
+        fecha_nacimiento: formEdit.fecha_nacimiento || null,
+        domicilio: formEdit.domicilio.trim() || null,
+        salario_diario: parseFloat(formEdit.salario_diario) || 0,
+        tipo_pago: formEdit.tipo_pago,
+      })
+      .eq("id", usuarioEditando.id)
+      .select("id");
+    setLoading(false);
+
+    if (error || !data || data.length === 0) {
+      alert(
+        `No se pudo guardar: ${error?.message || "la base no aplicó el cambio (permisos)"}`,
+      );
+      return;
+    }
+    setUsuarioEditando(null);
     cargarUsuarios();
   }
 
@@ -443,6 +531,13 @@ export default function UsuariosPage() {
                   </TableCell>
                   <TableCell>
                     <button
+                      onClick={() => abrirEdicion(u)}
+                      title="Editar"
+                      className="text-gray-400 hover:text-gray-600 mr-3"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
                       onClick={() => abrirHorario(u)}
                       title="Horario"
                       className="text-gray-400 hover:text-gray-600 mr-3"
@@ -505,6 +600,13 @@ export default function UsuariosPage() {
                   {u.activo ? "Activo" : "Inactivo"}
                 </span>
                 <button
+                  onClick={() => abrirEdicion(u)}
+                  title="Editar"
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
                   onClick={() => abrirHorario(u)}
                   title="Horario"
                   className="text-gray-400 hover:text-gray-600"
@@ -522,6 +624,149 @@ export default function UsuariosPage() {
           ))}
         </div>
       </div>
+
+      <Dialog
+        open={!!usuarioEditando}
+        onOpenChange={(v) => {
+          if (!v) setUsuarioEditando(null);
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar empleado</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Nombre *</Label>
+                <Input
+                  value={formEdit.nombre_completo}
+                  onChange={(e) =>
+                    setFormEdit({ ...formEdit, nombre_completo: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Apellido</Label>
+                <Input
+                  value={formEdit.apellido}
+                  onChange={(e) =>
+                    setFormEdit({ ...formEdit, apellido: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Rol *</Label>
+                <Select
+                  value={formEdit.rol}
+                  onValueChange={(v) => setFormEdit({ ...formEdit, rol: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLES.map((r) => (
+                      <SelectItem key={r} value={r} className="capitalize">
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>NIP (6 dígitos) *</Label>
+                <Input
+                  value={formEdit.nip}
+                  onChange={(e) =>
+                    setFormEdit({
+                      ...formEdit,
+                      nip: e.target.value.replace(/\D/g, "").slice(0, 6),
+                    })
+                  }
+                  maxLength={6}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Sucursal</Label>
+              <Select
+                value={formEdit.sucursal_id}
+                onValueChange={(v) =>
+                  setFormEdit({ ...formEdit, sucursal_id: v })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una sucursal" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sucursales.map((suc) => (
+                    <SelectItem key={suc.id} value={suc.id}>
+                      {suc.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Fecha de nacimiento</Label>
+                <Input
+                  type="date"
+                  value={formEdit.fecha_nacimiento}
+                  onChange={(e) =>
+                    setFormEdit({
+                      ...formEdit,
+                      fecha_nacimiento: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Salario diario</Label>
+                <Input
+                  type="number"
+                  value={formEdit.salario_diario}
+                  onChange={(e) =>
+                    setFormEdit({ ...formEdit, salario_diario: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Domicilio</Label>
+              <Input
+                value={formEdit.domicilio}
+                onChange={(e) =>
+                  setFormEdit({ ...formEdit, domicilio: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tipo de pago</Label>
+              <Select
+                value={formEdit.tipo_pago}
+                onValueChange={(v) => setFormEdit({ ...formEdit, tipo_pago: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="diario">Diario</SelectItem>
+                  <SelectItem value="semanal">Semanal</SelectItem>
+                  <SelectItem value="quincenal">Quincenal</SelectItem>
+                  <SelectItem value="mensual">Mensual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-gray-400">
+              El correo y la contraseña de acceso no se cambian desde aquí.
+            </p>
+            <Button className="w-full" onClick={guardarEdicion} disabled={loading}>
+              {loading ? "Guardando..." : "Guardar cambios"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={!!usuarioHorario}
