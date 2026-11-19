@@ -272,16 +272,19 @@ export default function CatalogoPage() {
       payload.imagen_url = null;
     }
 
-    const { error: errorGuardar } = editandoProducto
+    const { data: guardado, error: errorGuardar } = editandoProducto
       ? await supabase
           .from("productos")
           .update(payload)
           .eq("id", editandoProducto.id)
-      : await supabase.from("productos").insert(payload);
+          .select("id")
+      : await supabase.from("productos").insert(payload).select("id");
 
-    if (errorGuardar) {
+    if (errorGuardar || !guardado || guardado.length === 0) {
       setLoading(false);
-      alert(`No se pudo guardar: ${errorGuardar.message}`);
+      alert(
+        `No se pudo guardar: ${errorGuardar?.message || "la base no aplicó el cambio (permisos de la tabla productos)"}`,
+      );
       return;
     }
 

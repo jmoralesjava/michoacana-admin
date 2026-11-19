@@ -67,7 +67,7 @@ export default function NominaPage() {
       supabase
         .from("jornadas")
         .select(
-          "*, perfiles(nombre_completo, apellido, salario_diario, tipo_pago, sucursal_id)",
+          "*, perfiles(nombre_completo, apellido, salario_diario, tipo_pago, sucursal_id, hora_entrada, hora_salida)",
         )
         .gte("inicio_at", rango.desde)
         .lte("inicio_at", rango.hasta),
@@ -96,13 +96,34 @@ export default function NominaPage() {
           tipo_pago: perfil.tipo_pago,
           dias_trabajados: 0,
           horas_trabajadas: 0,
+          minutos_retardo: 0,
+          minutos_comida_exceso: 0,
+          descuento: 0,
           costo_total: 0,
         };
       }
 
+      const salario = Number(perfil.salario_diario) || 0;
+      const aMinutos = (hora: string) => {
+        const [h, m] = hora.split(":").map(Number);
+        return h * 60 + (m || 0);
+      };
+      let minutosJornada = 480;
+      if (perfil.hora_entrada && perfil.hora_salida) {
+        const diferencia =
+          aMinutos(perfil.hora_salida) - aMinutos(perfil.hora_entrada);
+        if (diferencia > 0) minutosJornada = diferencia;
+      }
+      const retardo = Number(j.minutos_retardo) || 0;
+      const descuento = Math.min(salario, (salario / minutosJornada) * retardo);
+
       costosPorEmpleado[id].dias_trabajados += 1;
       costosPorEmpleado[id].horas_trabajadas += (j.duracion_minutos || 0) / 60;
-      costosPorEmpleado[id].costo_total += Number(perfil.salario_diario) || 0;
+      costosPorEmpleado[id].minutos_retardo += retardo;
+      costosPorEmpleado[id].minutos_comida_exceso +=
+        Number(j.minutos_comida_exceso) || 0;
+      costosPorEmpleado[id].descuento += descuento;
+      costosPorEmpleado[id].costo_total += salario - descuento;
     });
 
     // Calcular ventas por sucursal
@@ -331,8 +352,13 @@ export default function NominaPage() {
                       <TableHead className="text-right">
                         Salario diario
                       </TableHead>
+                      <TableHead className="text-right">Retardo</TableHead>
                       <TableHead className="text-right">
-                        Costo período
+                        Exceso comida
+                      </TableHead>
+                      <TableHead className="text-right">Descuento</TableHead>
+                      <TableHead className="text-right">
+                        A pagar
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -351,6 +377,15 @@ export default function NominaPage() {
                         <TableCell className="text-right text-gray-500">
                           ${e.salario_diario.toFixed(2)}
                         </TableCell>
+                        <TableCell className="text-right text-gray-500">
+                          {e.minutos_retardo} min
+                        </TableCell>
+                        <TableCell className="text-right text-gray-500">
+                          {e.minutos_comida_exceso} min
+                        </TableCell>
+                        <TableCell className="text-right text-amber-600">
+                          -${e.descuento.toFixed(2)}
+                        </TableCell>
                         <TableCell className="text-right font-medium text-red-600">
                           ${e.costo_total.toFixed(2)}
                         </TableCell>
@@ -359,7 +394,7 @@ export default function NominaPage() {
                     {datos.empleados.length === 0 && (
                       <TableRow>
                         <TableCell
-                          colSpan={5}
+                          colSpan={8}
                           className="text-center py-8 text-gray-400 text-sm"
                         >
                           Sin jornadas registradas en este período

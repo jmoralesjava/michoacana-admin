@@ -27,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search, UserCheck, UserX } from "lucide-react";
+import { Plus, Search, UserCheck, UserX, Clock } from "lucide-react";
 
 const ROLES = ["vendedor", "cajero", "supervisor", "administrador"];
 
@@ -44,6 +44,13 @@ export default function UsuariosPage() {
   const [busqueda, setBusqueda] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [usuarioHorario, setUsuarioHorario] = useState<any>(null);
+  const [horario, setHorario] = useState({
+    hora_entrada: "",
+    hora_salida: "",
+    minutos_comida: "15",
+    tolerancia_minutos: "5",
+  });
   const [form, setForm] = useState({
     nombre_completo: "",
     apellido: "",
@@ -136,6 +143,41 @@ export default function UsuariosPage() {
       salario_diario: "",
       tipo_pago: "diario",
     });
+    cargarUsuarios();
+  }
+
+  function abrirHorario(u: any) {
+    setUsuarioHorario(u);
+    setHorario({
+      hora_entrada: u.hora_entrada?.slice(0, 5) || "",
+      hora_salida: u.hora_salida?.slice(0, 5) || "",
+      minutos_comida: String(u.minutos_comida ?? 15),
+      tolerancia_minutos: String(u.tolerancia_minutos ?? 5),
+    });
+  }
+
+  async function guardarHorario() {
+    if (!usuarioHorario) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("perfiles")
+      .update({
+        hora_entrada: horario.hora_entrada || null,
+        hora_salida: horario.hora_salida || null,
+        minutos_comida: parseInt(horario.minutos_comida) || 0,
+        tolerancia_minutos: parseInt(horario.tolerancia_minutos) || 0,
+      })
+      .eq("id", usuarioHorario.id)
+      .select("id");
+    setLoading(false);
+
+    if (error || !data || data.length === 0) {
+      alert(
+        `No se pudo guardar el horario: ${error?.message || "la base no aplicó el cambio (permisos)"}`,
+      );
+      return;
+    }
+    setUsuarioHorario(null);
     cargarUsuarios();
   }
 
@@ -401,6 +443,13 @@ export default function UsuariosPage() {
                   </TableCell>
                   <TableCell>
                     <button
+                      onClick={() => abrirHorario(u)}
+                      title="Horario"
+                      className="text-gray-400 hover:text-gray-600 mr-3"
+                    >
+                      <Clock size={16} />
+                    </button>
+                    <button
                       onClick={() => toggleActivo(u.id, u.activo)}
                       className="text-gray-400 hover:text-gray-600"
                     >
@@ -456,6 +505,13 @@ export default function UsuariosPage() {
                   {u.activo ? "Activo" : "Inactivo"}
                 </span>
                 <button
+                  onClick={() => abrirHorario(u)}
+                  title="Horario"
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <Clock size={16} />
+                </button>
+                <button
                   onClick={() => toggleActivo(u.id, u.activo)}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -466,6 +522,75 @@ export default function UsuariosPage() {
           ))}
         </div>
       </div>
+
+      <Dialog
+        open={!!usuarioHorario}
+        onOpenChange={(v) => {
+          if (!v) setUsuarioHorario(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Horario de {usuarioHorario?.nombre_completo}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Hora de entrada</Label>
+                <Input
+                  type="time"
+                  value={horario.hora_entrada}
+                  onChange={(e) =>
+                    setHorario({ ...horario, hora_entrada: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Hora de salida</Label>
+                <Input
+                  type="time"
+                  value={horario.hora_salida}
+                  onChange={(e) =>
+                    setHorario({ ...horario, hora_salida: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Comida (minutos)</Label>
+                <Input
+                  type="number"
+                  value={horario.minutos_comida}
+                  onChange={(e) =>
+                    setHorario({ ...horario, minutos_comida: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tolerancia (minutos)</Label>
+                <Input
+                  type="number"
+                  value={horario.tolerancia_minutos}
+                  onChange={(e) =>
+                    setHorario({
+                      ...horario,
+                      tolerancia_minutos: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-400">
+              Si llega después de la tolerancia, todos los minutos de retraso
+              se descuentan en nómina.
+            </p>
+            <Button className="w-full" onClick={guardarHorario} disabled={loading}>
+              {loading ? "Guardando..." : "Guardar horario"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
