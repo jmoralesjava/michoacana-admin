@@ -1,0 +1,84 @@
+.menu-publico {
+  --rosa: #c4127a;
+  --rosa-hondo: #9c0c60;
+  --ciruela: #3a0b26;
+  --ciruela-suave: #7a5568;
+  --nieve: #fff6fa;
+  --hielo: #fbe3ef;
+  --limon: #d3ea4f;
+  --papel: #ffffff;
+  min-height: 100dvh;
+  background: var(--nieve);
+  color: var(--ciruela);
+  font-family: var(--font-texto), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.menu-publico .rotulo {
+  font-family: var(--font-rotulo), var(--font-texto), sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.menu-publico .toldo {
+  height: 14px;
+  background: radial-gradient(circle at 14px 0, var(--rosa) 14px, transparent 14.5px);
+  background-size: 28px 14px;
+  background-repeat: repeat-x;
+}
+
+.menu-publico .sin-barra {
+  scrollbar-width: none;
+}
+.menu-publico .sin-barra::-webkit-scrollbar {
+  display: none;
+}
+
+.menu-publico .hoja {
+  animation: subir-hoja 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.menu-publico .velo {
+  animation: aparecer-velo 0.2s ease-out;
+}
+.menu-publico .rebote {
+  animation: rebote 0.32s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes subir-hoja {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes aparecer-velo {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes rebote {
+  0% {
+    transform: scale(0.7);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.menu-publico button:focus-visible,
+.menu-publico input:focus-visible {
+  outline: 3px solid var(--ciruela);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-publico .hoja,
+  .menu-publico .velo,
+  .menu-publico .rebote {
+    animation: none;
+  }
+}

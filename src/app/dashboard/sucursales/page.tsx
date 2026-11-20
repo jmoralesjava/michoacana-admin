@@ -20,9 +20,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, MapPin, Trash2 } from "lucide-react";
+import { Plus, MapPin, Trash2, QrCode } from "lucide-react";
 
 export default function SucursalesPage() {
+  const [sucursalQR, setSucursalQR] = useState<any>(null);
   const [sucursales, setSucursales] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -269,10 +270,71 @@ export default function SucursalesPage() {
               >
                 {s.activa ? "Desactivar" : "Activar"}
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 text-xs"
+                onClick={() => setSucursalQR(s)}
+              >
+                <QrCode size={14} className="mr-1.5" />
+                QR del menú
+              </Button>
             </div>
           </div>
         ))}
       </div>
+
+      <Dialog
+        open={!!sucursalQR}
+        onOpenChange={(v) => {
+          if (!v) setSucursalQR(null);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Menú de {sucursalQR?.nombre}</DialogTitle>
+          </DialogHeader>
+          {sucursalQR && (
+            <div className="space-y-4 pt-2 text-center">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=16&data=${encodeURIComponent(
+                  `${window.location.origin}/menu/${sucursalQR.id}`,
+                )}`}
+                alt={`QR del menú de ${sucursalQR.nombre}`}
+                className="mx-auto h-56 w-56 rounded-lg border border-gray-100"
+              />
+              <p className="text-xs text-gray-500 break-all">
+                {`${window.location.origin}/menu/${sucursalQR.id}`}
+              </p>
+              <div className="flex gap-2">
+                <Button asChild variant="outline" className="flex-1">
+                  <a
+                    href={`/menu/${sucursalQR.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Abrir menú
+                  </a>
+                </Button>
+                <Button asChild className="flex-1">
+                  <a
+                    href={`https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&margin=30&data=${encodeURIComponent(
+                      `${window.location.origin}/menu/${sucursalQR.id}`,
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    QR para imprimir
+                  </a>
+                </Button>
+              </div>
+              <p className="text-xs text-gray-400">
+                Imprime el QR y colócalo donde los clientes hacen fila.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
