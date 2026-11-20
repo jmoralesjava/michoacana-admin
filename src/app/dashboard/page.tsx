@@ -15,6 +15,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
+import NominaVsVentas from "@/components/dashboard/NominaVsVentas";
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -336,6 +337,8 @@ export default function DashboardPage() {
           <p className="text-xs text-gray-400 mt-1">ventas en sucursales hoy</p>
         </div>
       </div>
+
+      <NominaVsVentas />
 
       <div
         style={{
