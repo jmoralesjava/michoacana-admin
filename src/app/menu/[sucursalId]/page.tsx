@@ -41,6 +41,13 @@ const DOS_HORAS = 2 * 60 * 60 * 1000;
 const pesos = (n: number) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n);
 
+function sinAcentos(texto: string) {
+  return texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 function claveDe(producto: Producto, variante: Variante | null, toppings: Topping[]) {
   return [
     producto.id,
@@ -116,6 +123,7 @@ export default function MenuPublico() {
   const [extras, setExtras] = useState<Record<string, Topping[]>>({});
 
   const [categoria, setCategoria] = useState("todo");
+  const [busqueda, setBusqueda] = useState("");
   const [carrito, setCarrito] = useState<Item[]>([]);
   const [abierto, setAbierto] = useState<Producto | null>(null);
   const [selVariante, setSelVariante] = useState<Variante | null>(null);
@@ -238,10 +246,13 @@ export default function MenuPublico() {
     } catch {}
   }, [carrito, nombre, codigo, restaurado, llave]);
 
-  const visibles = useMemo(
-    () => (categoria === "todo" ? productos : productos.filter((p) => p.categoria_id === categoria)),
-    [categoria, productos],
-  );
+  const buscado = sinAcentos(busqueda.trim());
+  const visibles = useMemo(() => {
+    if (buscado) return productos.filter((p) => sinAcentos(p.nombre).includes(buscado));
+    return categoria === "todo"
+      ? productos
+      : productos.filter((p) => p.categoria_id === categoria);
+  }, [buscado, categoria, productos]);
   const piezas = carrito.reduce((s, i) => s + i.cantidad, 0);
   const total = carrito.reduce((s, i) => s + precioUnitario(i) * i.cantidad, 0);
 
@@ -423,18 +434,56 @@ export default function MenuPublico() {
       </header>
       <div className="toldo" />
 
+      <div className="sticky top-0 z-10 bg-[var(--nieve)]/95 backdrop-blur">
+        <div className="relative px-4 pt-3">
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            className="pointer-events-none absolute left-8 top-1/2 mt-1.5 h-5 w-5 -translate-y-1/2 text-[var(--ciruela-suave)]"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.5-3.5" />
+          </svg>
+          <input
+            type="search"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Busca tu antojo"
+            aria-label="Buscar producto"
+            enterKeyHint="search"
+            autoComplete="off"
+            className="w-full rounded-full bg-white py-3 pl-12 pr-12 text-[16px] ring-1 ring-[var(--hielo)] placeholder:text-[var(--ciruela-suave)] [&::-webkit-search-cancel-button]:hidden"
+          />
+          {busqueda && (
+            <button
+              type="button"
+              aria-label="Borrar búsqueda"
+              onClick={() => setBusqueda("")}
+              className="absolute right-6 top-1/2 mt-1.5 h-8 w-8 -translate-y-1/2 rounded-full bg-[var(--hielo)] text-base font-bold text-[var(--rosa-hondo)]"
+            >
+              ×
+            </button>
+          )}
+        </div>
       <nav
         aria-label="Categorías"
-        className="sin-barra sticky top-0 z-10 flex gap-2 overflow-x-auto bg-[var(--nieve)]/95 px-4 py-3 backdrop-blur"
+        className="sin-barra flex gap-2 overflow-x-auto px-4 py-3"
       >
         {[{ id: "todo", nombre: "Todo" }, ...categorias].map((c) => {
-          const activa = categoria === c.id;
+          const activa = !buscado && categoria === c.id;
           return (
             <button
               key={c.id}
               type="button"
               aria-pressed={activa}
-              onClick={() => setCategoria(c.id)}
+              onClick={() => {
+                setBusqueda("");
+                setCategoria(c.id);
+              }}
               className={`shrink-0 rounded-full px-4 py-2 text-[15px] font-semibold transition-colors ${
                 activa
                   ? "bg-[var(--ciruela)] text-white"
@@ -446,10 +495,13 @@ export default function MenuPublico() {
           );
         })}
       </nav>
+      </div>
 
       {visibles.length === 0 ? (
         <p className="px-6 pt-10 text-center text-[var(--ciruela-suave)]">
-          Aún no hay productos en esta categoría.
+          {buscado
+            ? `No encontramos "${busqueda.trim()}". Prueba con otra palabra o revisa las categorías.`
+            : "Aún no hay productos en esta categoría."}
         </p>
       ) : (
         <ul className="grid grid-cols-2 gap-3 px-4 pt-2">
