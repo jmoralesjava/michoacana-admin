@@ -26,6 +26,10 @@ type Item = {
 };
 type Guardado = {
   nombre: string;
+  telefono?: string;
+  nacimiento?: string;
+  clienteCodigo?: string | null;
+  puntos?: number;
   codigo: string | null;
   creado: number;
   items: {
@@ -134,6 +138,10 @@ export default function MenuPublico() {
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState("");
   const [codigo, setCodigo] = useState<string | null>(null);
+  const [telefono, setTelefono] = useState("");
+  const [nacimiento, setNacimiento] = useState("");
+  const [clienteCodigo, setClienteCodigo] = useState<string | null>(null);
+  const [puntos, setPuntos] = useState(0);
   const [restaurado, setRestaurado] = useState(false);
 
   useEffect(() => {
@@ -221,6 +229,10 @@ export default function MenuPublico() {
           }
           setCarrito(items);
           setNombre(g.nombre || "");
+          setTelefono(g.telefono || "");
+          setNacimiento(g.nacimiento || "");
+          setClienteCodigo(g.clienteCodigo || null);
+          setPuntos(g.puntos || 0);
           if (g.codigo && items.length > 0) setCodigo(g.codigo);
         }
       }
@@ -233,6 +245,10 @@ export default function MenuPublico() {
     try {
       const g: Guardado = {
         nombre,
+        telefono,
+        nacimiento,
+        clienteCodigo,
+        puntos,
         codigo,
         creado: Date.now(),
         items: carrito.map((i) => ({
@@ -244,7 +260,7 @@ export default function MenuPublico() {
       };
       localStorage.setItem(llave, JSON.stringify(g));
     } catch {}
-  }, [carrito, nombre, codigo, restaurado, llave]);
+  }, [carrito, nombre, telefono, nacimiento, clienteCodigo, puntos, codigo, restaurado, llave]);
 
   const buscado = sinAcentos(busqueda.trim());
   const visibles = useMemo(() => {
@@ -286,11 +302,17 @@ export default function MenuPublico() {
       setAviso("Escribe tu nombre para que el vendedor te llame.");
       return;
     }
+    if (telefono && telefono.length !== 10) {
+      setAviso("Tu celular debe tener 10 dígitos, o déjalo vacío.");
+      return;
+    }
     setAviso("");
     setEnviando(true);
     const { data, error } = await supabase.rpc("crear_pedido_menu", {
       p_sucursal_id: sucursalId,
       p_nombre: nombre.trim(),
+      p_telefono: telefono || null,
+      p_fecha_nacimiento: telefono && nacimiento ? nacimiento : null,
       p_items: carrito.map((i) => ({
         producto_id: i.producto.id,
         variante_id: i.variante?.id || null,
@@ -304,7 +326,13 @@ export default function MenuPublico() {
       setAviso("No se pudo guardar tu pedido. Revisa tu conexión y vuelve a intentar.");
       return;
     }
-    setCodigo(String(data));
+    if (typeof data === "object") {
+      setClienteCodigo(data.cliente_codigo || null);
+      setPuntos(Number(data.puntos) || 0);
+      setCodigo(String(data.codigo));
+    } else {
+      setCodigo(String(data));
+    }
     setVerPedido(false);
     window.scrollTo({ top: 0 });
   }
@@ -386,6 +414,22 @@ export default function MenuPublico() {
             Pagas en caja. El vendedor confirma tu pedido antes de cobrarte.
           </p>
         </section>
+
+        {clienteCodigo && (
+          <section className="mx-5 mt-4 rounded-[24px] bg-[var(--ciruela)] p-5 text-white">
+            <p className="text-sm opacity-80">Tus puntos</p>
+            <p className="rotulo mt-1 text-4xl text-[var(--limon)]">{puntos}</p>
+            <p className="mt-2 text-sm leading-snug opacity-90">
+              Esta compra suma puntos cuando pagues en caja.
+            </p>
+            <a
+              href={`/menu/puntos?c=${clienteCodigo}`}
+              className="mt-4 inline-block rounded-full bg-white px-5 py-2.5 text-sm font-bold text-[var(--ciruela)]"
+            >
+              Ver mi tarjeta de puntos
+            </a>
+          </section>
+        )}
 
         <div className="mt-6 flex flex-col gap-3 px-5">
           <button
@@ -786,6 +830,38 @@ export default function MenuPublico() {
                     className="mt-2 w-full rounded-2xl bg-[var(--nieve)] px-4 py-3.5 text-[17px] ring-1 ring-[var(--hielo)] placeholder:text-[var(--ciruela-suave)]"
                   />
                 </label>
+
+                <label className="mt-4 block">
+                  <span className="font-bold">Tu celular, si quieres juntar puntos</span>
+                  <input
+                    value={telefono}
+                    onChange={(e) => setTelefono(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    placeholder="10 dígitos"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    className="mt-2 w-full rounded-2xl bg-[var(--nieve)] px-4 py-3.5 text-[17px] ring-1 ring-[var(--hielo)] placeholder:text-[var(--ciruela-suave)]"
+                  />
+                  <span className="mt-1.5 block text-sm text-[var(--ciruela-suave)]">
+                    Es opcional. Solo lo usamos para tu programa de puntos.
+                  </span>
+                </label>
+
+                {telefono.length === 10 && (
+                  <label className="mt-4 block">
+                    <span className="font-bold">Tu cumpleaños, para consentirte ese día</span>
+                    <input
+                      value={nacimiento}
+                      onChange={(e) => setNacimiento(e.target.value)}
+                      type="date"
+                      max={new Date().toISOString().slice(0, 10)}
+                      className="mt-2 w-full rounded-2xl bg-[var(--nieve)] px-4 py-3.5 text-[17px] ring-1 ring-[var(--hielo)]"
+                    />
+                    <span className="mt-1.5 block text-sm text-[var(--ciruela-suave)]">
+                      También es opcional.
+                    </span>
+                  </label>
+                )}
 
                 {aviso && (
                   <p role="alert" className="mt-3 text-sm font-semibold text-[var(--rosa-hondo)]">
