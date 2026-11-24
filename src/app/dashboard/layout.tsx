@@ -19,7 +19,7 @@ import {
   UserCheck,
   DollarSign,
   ShoppingCart,
-  Receipt, Truck ,
+  Receipt, Truck, Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +37,7 @@ const navItems = [
   { href: "/dashboard/clientes", label: "Clientes", icon: ShoppingCart },
   { href: "/dashboard/cortes", label: "Cortes de caja", icon: Receipt },
   { href: "/dashboard/repartidores", label: "Repartidores", icon: Truck },
+  { href: "/dashboard/lealtad", label: "Puntos", icon: Star },
 ];
 
 export default function DashboardLayout({

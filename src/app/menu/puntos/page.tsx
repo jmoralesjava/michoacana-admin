@@ -39,6 +39,21 @@ function Tarjeta() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inicial]);
 
+  async function guardarQR() {
+    try {
+      const respuesta = await fetch(qr);
+      const blob = await respuesta.blob();
+      const enlace = document.createElement("a");
+      enlace.href = URL.createObjectURL(blob);
+      enlace.download = "mis-puntos-michoacana.png";
+      document.body.appendChild(enlace);
+      enlace.click();
+      enlace.remove();
+    } catch {
+      window.open(qr, "_blank");
+    }
+  }
+
   const qr = cliente
     ? `https://api.qrserver.com/v1/create-qr-code/?size=440x440&margin=12&color=3a0b26&data=${encodeURIComponent(`CLIENTE:${cliente.codigo}`)}`
     : "";
@@ -67,6 +82,13 @@ function Tarjeta() {
             Enséñale este código al vendedor en cada compra para sumar puntos, en
             cualquier sucursal.
           </p>
+          <button
+            type="button"
+            onClick={guardarQR}
+            className="mt-6 w-full rounded-full bg-[var(--rosa)] px-6 py-4 text-[17px] font-bold text-white"
+          >
+            Guardar mi QR en el teléfono
+          </button>
           <p className="mx-auto mt-4 max-w-[30ch] text-sm text-[var(--ciruela-suave)]">
             Si lo pierdes, vuelve a esta página y escribe tu celular.
           </p>
