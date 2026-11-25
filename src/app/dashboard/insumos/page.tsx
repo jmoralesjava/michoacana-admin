@@ -53,6 +53,8 @@ export default function InsumosPage() {
     unidad_medida: "pieza",
     unidad_compra: "pieza",
     factor_conversion: "1",
+    precio_venta: "",
+    se_vende: false,
     stock_minimo: "0",
   });
 
@@ -86,6 +88,8 @@ export default function InsumosPage() {
         unidad_medida: form.unidad_medida,
         unidad_compra: form.unidad_compra,
         factor_conversion: parseFloat(form.factor_conversion) || 1,
+        precio_venta: form.precio_venta ? parseFloat(form.precio_venta) : null,
+        se_vende: form.se_vende,
         stock_minimo: parseFloat(form.stock_minimo) || 0,
       })
       .select()
@@ -109,8 +113,24 @@ export default function InsumosPage() {
       unidad_medida: "pieza",
       unidad_compra: "pieza",
       factor_conversion: "1",
+    precio_venta: "",
+    se_vende: false,
       stock_minimo: "0",
     });
+    cargarTodo();
+  }
+
+  async function actualizarInsumo(id: string, campos: any) {
+    const { data, error } = await supabase
+      .from("insumos")
+      .update(campos)
+      .eq("id", id)
+      .select("id");
+    if (error || !data || data.length === 0) {
+      alert(
+        `No se pudo guardar: ${error?.message || "la base no aplicó el cambio (permisos)"}`,
+      );
+    }
     cargarTodo();
   }
 
@@ -215,6 +235,36 @@ export default function InsumosPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
+                  <Label>Precio de venta</Label>
+                  <Input
+                    type="number"
+                    value={form.precio_venta}
+                    onChange={(e) =>
+                      setForm({ ...form, precio_venta: e.target.value })
+                    }
+                    placeholder="Por unidad de consumo"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>¿Se vende?</Label>
+                  <div className="flex items-center gap-2 h-10">
+                    <input
+                      type="checkbox"
+                      id="se_vende"
+                      checked={form.se_vende}
+                      onChange={(e) =>
+                        setForm({ ...form, se_vende: e.target.checked })
+                      }
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="se_vende" className="text-sm text-gray-600">
+                      Fábrica y almacenes pueden venderlo
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
                   <Label>Factor de conversión</Label>
                   <Input
                     type="number"
@@ -277,6 +327,8 @@ export default function InsumosPage() {
                     <TableHead>Unidad compra</TableHead>
                     <TableHead>Factor</TableHead>
                     <TableHead>Stock mínimo</TableHead>
+                    <TableHead>Precio venta</TableHead>
+                    <TableHead>Se vende</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -297,6 +349,32 @@ export default function InsumosPage() {
                       </TableCell>
                       <TableCell className="text-sm text-gray-500">
                         {i.stock_minimo} {i.unidad_medida}
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          className="h-8 w-24"
+                          defaultValue={i.precio_venta ?? ""}
+                          placeholder="—"
+                          onBlur={(e) => {
+                            const valor = e.target.value
+                              ? parseFloat(e.target.value)
+                              : null;
+                            if (valor !== (i.precio_venta ?? null)) {
+                              actualizarInsumo(i.id, { precio_venta: valor });
+                            }
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4"
+                          checked={!!i.se_vende}
+                          onChange={(e) =>
+                            actualizarInsumo(i.id, { se_vende: e.target.checked })
+                          }
+                        />
                       </TableCell>
                       <TableCell>
                         <button

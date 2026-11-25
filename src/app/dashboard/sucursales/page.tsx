@@ -22,8 +22,22 @@ import {
 } from "@/components/ui/table";
 import { Plus, MapPin, Trash2, QrCode } from "lucide-react";
 
+const TIPOS: Record<string, string> = {
+  sucursal: "Sucursal",
+  fabrica: "Fábrica",
+  almacen_general: "Almacén general",
+  almacen_regional: "Almacén regional",
+};
+
 export default function SucursalesPage() {
   const [sucursalQR, setSucursalQR] = useState<any>(null);
+  const [perfiles, setPerfiles] = useState<any[]>([]);
+  const [unidadConfig, setUnidadConfig] = useState<any>(null);
+  const [config, setConfig] = useState({
+    tipo: "sucursal",
+    proveedor_id: "",
+    encargado_id: "",
+  });
   const [sucursales, setSucursales] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -34,11 +48,56 @@ export default function SucursalesPage() {
     longitud: "",
     radio_metros: "100",
     tiene_area_consumo: false,
+    tipo: "sucursal",
+    proveedor_id: "",
+    encargado_id: "",
   });
 
   useEffect(() => {
     cargarSucursales();
+    cargarPerfiles();
   }, []);
+
+  async function cargarPerfiles() {
+    const { data } = await supabase
+      .from("perfiles")
+      .select("id, nombre_completo, apellido")
+      .eq("activo", true)
+      .order("nombre_completo");
+    if (data) setPerfiles(data);
+  }
+
+  function abrirConfig(u: any) {
+    setUnidadConfig(u);
+    setConfig({
+      tipo: u.tipo || "sucursal",
+      proveedor_id: u.proveedor_id || "",
+      encargado_id: u.encargado_id || "",
+    });
+  }
+
+  async function guardarConfig() {
+    if (!unidadConfig) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("sucursales")
+      .update({
+        tipo: config.tipo,
+        proveedor_id: config.proveedor_id || null,
+        encargado_id: config.encargado_id || null,
+      })
+      .eq("id", unidadConfig.id)
+      .select("id");
+    setLoading(false);
+    if (error || !data || data.length === 0) {
+      alert(
+        `No se pudo guardar: ${error?.message || "la base no aplicó el cambio (permisos)"}`,
+      );
+      return;
+    }
+    setUnidadConfig(null);
+    cargarSucursales();
+  }
 
   async function cargarSucursales() {
     const { data } = await supabase
@@ -61,6 +120,9 @@ export default function SucursalesPage() {
         longitud: form.longitud ? parseFloat(form.longitud) : null,
         radio_metros: parseFloat(form.radio_metros) || 100,
         tiene_area_consumo: form.tiene_area_consumo,
+        tipo: form.tipo,
+        proveedor_id: form.proveedor_id || null,
+        encargado_id: form.encargado_id || null,
         activa: true,
       })
       .select()
@@ -93,6 +155,9 @@ export default function SucursalesPage() {
       longitud: "",
       radio_metros: "100",
       tiene_area_consumo: false,
+      tipo: "sucursal",
+      proveedor_id: "",
+      encargado_id: "",
     });
     cargarSucursales();
   }
@@ -106,7 +171,7 @@ export default function SucursalesPage() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Sucursales</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Unidades</h1>
           <p className="text-sm text-gray-400 mt-1">
             {sucursales.length} sucursales registradas
           </p>
@@ -115,12 +180,12 @@ export default function SucursalesPage() {
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus size={16} />
-              Nueva sucursal
+              Nueva unidad
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Nueva sucursal</DialogTitle>
+              <DialogTitle>Nueva unidad</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="space-y-1.5">
@@ -212,6 +277,60 @@ export default function SucursalesPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Tipo de unidad</Label>
+                  <select
+                    className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900"
+                    value={form.tipo}
+                    onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+                  >
+                    {Object.entries(TIPOS).map(([valor, etiqueta]) => (
+                      <option key={valor} value={valor}>
+                        {etiqueta}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Quién la surte</Label>
+                  <select
+                    className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900"
+                    value={form.proveedor_id}
+                    onChange={(e) =>
+                      setForm({ ...form, proveedor_id: e.target.value })
+                    }
+                  >
+                    <option value="">Nadie (compra a proveedores)</option>
+                    {sucursales
+                      .filter((u) => u.tipo !== "sucursal")
+                      .map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.nombre}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Encargado</Label>
+                <select
+                  className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900"
+                  value={form.encargado_id}
+                  onChange={(e) =>
+                    setForm({ ...form, encargado_id: e.target.value })
+                  }
+                >
+                  <option value="">Sin asignar</option>
+                  {perfiles.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre_completo} {p.apellido || ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <Button
                 className="w-full"
                 onClick={crearSucursal}
@@ -253,6 +372,22 @@ export default function SucursalesPage() {
                   </span>
                 </div>
               )}
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700">
+                  {TIPOS[s.tipo] || "Sucursal"}
+                </span>
+                <span className="text-gray-500">
+                  {s.proveedor_id
+                    ? `La surte: ${sucursales.find((u) => u.id === s.proveedor_id)?.nombre || "—"}`
+                    : "Compra a proveedores"}
+                </span>
+              </div>
+              {s.encargado_id && (
+                <div className="text-xs text-gray-500">
+                  Encargado:{" "}
+                  {perfiles.find((p) => p.id === s.encargado_id)?.nombre_completo || "—"}
+                </div>
+              )}
               <div className="flex items-center gap-2 text-xs text-gray-400">
                 <span>Radio: {s.radio_metros}m</span>
                 {s.tiene_area_consumo && (
@@ -279,10 +414,89 @@ export default function SucursalesPage() {
                 <QrCode size={14} className="mr-1.5" />
                 QR del menú
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 text-xs"
+                onClick={() => abrirConfig(s)}
+              >
+                Configurar
+              </Button>
             </div>
           </div>
         ))}
       </div>
+
+      <Dialog
+        open={!!unidadConfig}
+        onOpenChange={(v) => {
+          if (!v) setUnidadConfig(null);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Configurar {unidadConfig?.nombre}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label>Tipo de unidad</Label>
+              <select
+                className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900"
+                value={config.tipo}
+                onChange={(e) => setConfig({ ...config, tipo: e.target.value })}
+              >
+                {Object.entries(TIPOS).map(([valor, etiqueta]) => (
+                  <option key={valor} value={valor}>
+                    {etiqueta}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Quién la surte</Label>
+              <select
+                className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900"
+                value={config.proveedor_id}
+                onChange={(e) =>
+                  setConfig({ ...config, proveedor_id: e.target.value })
+                }
+              >
+                <option value="">Nadie (compra a proveedores)</option>
+                {sucursales
+                  .filter((u) => u.tipo !== "sucursal" && u.id !== unidadConfig?.id)
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.nombre}
+                    </option>
+                  ))}
+              </select>
+              <p className="text-xs text-gray-400">
+                Los pedidos de esta unidad le llegarán a quien elijas aquí.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Encargado</Label>
+              <select
+                className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900"
+                value={config.encargado_id}
+                onChange={(e) =>
+                  setConfig({ ...config, encargado_id: e.target.value })
+                }
+              >
+                <option value="">Sin asignar</option>
+                {perfiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre_completo} {p.apellido || ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button className="w-full" onClick={guardarConfig} disabled={loading}>
+              {loading ? "Guardando..." : "Guardar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={!!sucursalQR}
