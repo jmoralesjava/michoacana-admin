@@ -28,15 +28,20 @@ import {
 } from "@/components/ui/dialog";
 import { DollarSign, TrendingUp, CreditCard, Smartphone } from "lucide-react";
 
+function fechaLocal(d: Date) {
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mes}-${dia}`;
+}
+
 export default function CortesPage() {
   const [cortes, setCortes] = useState<any[]>([]);
   const [sucursales, setSucursales] = useState<any[]>([]);
   const [sucursalFiltro, setSucursalFiltro] = useState("todas");
-  const [desde, setDesde] = useState(
-    new Date(new Date().setDate(1)).toISOString().split("T")[0],
-  );
-  const [hasta, setHasta] = useState(new Date().toISOString().split("T")[0]);
+  const [desde, setDesde] = useState(fechaLocal(new Date(new Date().setDate(1))));
+  const [hasta, setHasta] = useState(fechaLocal(new Date()));
   const [loading, setLoading] = useState(false);
+  const [fallo, setFallo] = useState("");
   const [corteActivo, setCorteActivo] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -55,27 +60,51 @@ export default function CortesPage() {
 
   async function cargarCortes() {
     setLoading(true);
+    setFallo("");
+
+    const inicio = new Date(`${desde}T00:00:00`);
+    const fin = new Date(`${hasta}T23:59:59.999`);
 
     let query = supabase
       .from("turnos")
-      .select(
-        `
-        *,
-        sucursales(nombre),
-        perfiles(nombre_completo, apellido)
-      `,
-      )
+      .select("*")
       .eq("estado", "cerrado")
-      .gte("created_at", desde + "T00:00:00")
-      .lte("created_at", hasta + "T23:59:59")
-      .order("created_at", { ascending: false });
+      .gte("cerrado_at", inicio.toISOString())
+      .lte("cerrado_at", fin.toISOString())
+      .order("cerrado_at", { ascending: false });
 
     if (sucursalFiltro !== "todas") {
       query = query.eq("sucursal_id", sucursalFiltro);
     }
 
-    const { data } = await query;
-    if (data) setCortes(data);
+    const { data, error } = await query;
+    if (error) {
+      setFallo(error.message);
+      setCortes([]);
+      setLoading(false);
+      return;
+    }
+
+    const filas = data || [];
+    const idsPerfil = [...new Set(filas.map((c) => c.vendedor_id).filter(Boolean))];
+    const idsSucursal = [...new Set(filas.map((c) => c.sucursal_id).filter(Boolean))];
+
+    const [perfiles, sucs] = await Promise.all([
+      idsPerfil.length
+        ? supabase.from("perfiles").select("id, nombre_completo, apellido").in("id", idsPerfil)
+        : Promise.resolve({ data: [] as any[] }),
+      idsSucursal.length
+        ? supabase.from("sucursales").select("id, nombre").in("id", idsSucursal)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+    setCortes(
+      filas.map((c) => ({
+        ...c,
+        perfiles: (perfiles.data || []).find((p: any) => p.id === c.vendedor_id) || null,
+        sucursales: (sucs.data || []).find((x: any) => x.id === c.sucursal_id) || null,
+      })),
+    );
     setLoading(false);
   }
 
@@ -232,7 +261,9 @@ export default function CortesPage() {
                   colSpan={8}
                   className="text-center py-8 text-gray-400 text-sm"
                 >
-                  No hay cortes en este período
+                  {fallo
+                    ? `No se pudieron cargar los cortes: ${fallo}`
+                    : "No hay cortes en este período"}
                 </TableCell>
               </TableRow>
             ) : (
@@ -241,7 +272,7 @@ export default function CortesPage() {
                 return (
                   <TableRow key={c.id}>
                     <TableCell className="text-sm text-gray-500">
-                      {new Date(c.created_at).toLocaleDateString("es-MX", {
+                      {new Date(c.cerrado_at).toLocaleDateString("es-MX", {
                         day: "2-digit",
                         month: "short",
                         year: "numeric",
@@ -309,7 +340,7 @@ export default function CortesPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Fecha</span>
                 <span className="font-medium">
-                  {new Date(corteActivo.created_at).toLocaleString("es-MX")}
+                  {new Date(corteActivo.cerrado_at).toLocaleString("es-MX")}
                 </span>
               </div>
 
