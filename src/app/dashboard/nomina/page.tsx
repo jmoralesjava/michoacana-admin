@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DollarSign, TrendingUp, Users, AlertTriangle } from "lucide-react";
+import ConceptosNomina from "@/components/dashboard/ConceptosNomina";
 
 const PERIODOS = [
   { id: "semana", label: "Esta semana" },
@@ -185,6 +186,8 @@ export default function NominaPage() {
           Costo de personal vs ventas por sucursal
         </p>
       </div>
+
+      <ConceptosNomina />
 
       <div className="flex items-center gap-3 mb-6">
         {PERIODOS.map((p) => (
