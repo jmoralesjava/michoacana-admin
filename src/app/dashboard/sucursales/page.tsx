@@ -33,6 +33,9 @@ export default function SucursalesPage() {
   const [sucursalQR, setSucursalQR] = useState<any>(null);
   const [perfiles, setPerfiles] = useState<any[]>([]);
   const [unidadConfig, setUnidadConfig] = useState<any>(null);
+  const [unidadPrecios, setUnidadPrecios] = useState<any>(null);
+  const [articulos, setArticulos] = useState<any[]>([]);
+  const [cargandoPrecios, setCargandoPrecios] = useState(false);
   const [config, setConfig] = useState({
     tipo: "sucursal",
     proveedor_id: "",
@@ -65,6 +68,115 @@ export default function SucursalesPage() {
       .eq("activo", true)
       .order("nombre_completo");
     if (data) setPerfiles(data);
+  }
+
+  async function abrirPrecios(u: any) {
+    setUnidadPrecios(u);
+    setCargandoPrecios(true);
+    const [prods, vars, ins, precios] = await Promise.all([
+      supabase
+        .from("productos")
+        .select("id, nombre, precio, tiene_variantes")
+        .eq("activo", true)
+        .order("nombre"),
+      supabase.from("producto_variantes").select("id, producto_id, nombre, precio"),
+      supabase
+        .from("insumos")
+        .select("id, nombre, precio_venta, unidad_medida")
+        .eq("se_vende", true)
+        .order("nombre"),
+      supabase.from("precios_unidad").select("*").eq("unidad_id", u.id),
+    ]);
+
+    const propios = precios.data || [];
+    const filas: any[] = [];
+    for (const p of prods.data || []) {
+      const variantes = (vars.data || []).filter((v: any) => v.producto_id === p.id);
+      if (p.tiene_variantes && variantes.length > 0) {
+        for (const v of variantes) {
+          const propio = propios.find((x: any) => x.variante_id === v.id);
+          filas.push({
+            clave: `v-${v.id}`,
+            campo: "variante_id",
+            id: v.id,
+            nombre: `${p.nombre}, ${v.nombre}`,
+            base: v.precio,
+            precioId: propio?.id || null,
+            precio: propio?.precio ?? "",
+          });
+        }
+      } else {
+        const propio = propios.find((x: any) => x.producto_id === p.id);
+        filas.push({
+          clave: `p-${p.id}`,
+          campo: "producto_id",
+          id: p.id,
+          nombre: p.nombre,
+          base: p.precio,
+          precioId: propio?.id || null,
+          precio: propio?.precio ?? "",
+        });
+      }
+    }
+    for (const i of ins.data || []) {
+      const propio = propios.find((x: any) => x.insumo_id === i.id);
+      filas.push({
+        clave: `i-${i.id}`,
+        campo: "insumo_id",
+        id: i.id,
+        nombre: `${i.nombre} (insumo, por ${i.unidad_medida})`,
+        base: i.precio_venta,
+        precioId: propio?.id || null,
+        precio: propio?.precio ?? "",
+      });
+    }
+    setArticulos(filas);
+    setCargandoPrecios(false);
+  }
+
+  async function guardarPrecio(fila: any, texto: string) {
+    const valor = texto === "" ? null : parseFloat(texto);
+    if (valor !== null && (isNaN(valor) || valor < 0)) return;
+    const anterior = fila.precio === "" ? null : Number(fila.precio);
+    if (valor === anterior) return;
+
+    let resultado;
+    if (valor === null && fila.precioId) {
+      resultado = await supabase
+        .from("precios_unidad")
+        .delete()
+        .eq("id", fila.precioId)
+        .select("id");
+    } else if (fila.precioId) {
+      resultado = await supabase
+        .from("precios_unidad")
+        .update({ precio: valor, updated_at: new Date().toISOString() })
+        .eq("id", fila.precioId)
+        .select("id");
+    } else {
+      resultado = await supabase
+        .from("precios_unidad")
+        .insert({ unidad_id: unidadPrecios.id, [fila.campo]: fila.id, precio: valor })
+        .select("id");
+    }
+
+    if (resultado.error || !resultado.data || resultado.data.length === 0) {
+      alert(
+        `No se pudo guardar: ${resultado.error?.message || "la base no aplicó el cambio (permisos)"}`,
+      );
+      return;
+    }
+    setArticulos((prev) =>
+      prev.map((a) =>
+        a.clave === fila.clave
+          ? {
+              ...a,
+              precio: valor ?? "",
+              precioId: valor === null ? null : resultado.data[0].id,
+            }
+          : a,
+      ),
+    );
   }
 
   function abrirConfig(u: any) {
@@ -132,6 +244,14 @@ export default function SucursalesPage() {
       setLoading(false);
       alert("Error: " + error.message);
       return;
+    }
+
+    if (sucursal) {
+      await supabase.from("clientes").insert({
+        nombre: sucursal.nombre,
+        whatsapp: `sucursal-${sucursal.id}`,
+        activo: true,
+      });
     }
 
     // Crear registros de inventario para todos los insumos existentes
@@ -422,10 +542,66 @@ export default function SucursalesPage() {
               >
                 Configurar
               </Button>
+              {s.tipo && s.tipo !== "sucursal" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={() => abrirPrecios(s)}
+                >
+                  Precios
+                </Button>
+              )}
             </div>
           </div>
         ))}
       </div>
+
+      <Dialog
+        open={!!unidadPrecios}
+        onOpenChange={(v) => {
+          if (!v) setUnidadPrecios(null);
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Lista de precios de {unidadPrecios?.nombre}</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-gray-500">
+            Precio al que esta unidad vende cada artículo, antes del descuento
+            por categoría del comprador. Deja vacío para usar el precio de
+            lista general.
+          </p>
+          {cargandoPrecios ? (
+            <p className="text-sm text-gray-400 py-6">Cargando...</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {articulos.map((a) => (
+                <div key={a.clave} className="flex items-center gap-3 py-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-900 truncate">{a.nombre}</p>
+                    <p className="text-xs text-gray-400">
+                      Lista general: ${Number(a.base || 0).toFixed(2)}
+                    </p>
+                  </div>
+                  <Input
+                    type="number"
+                    className="h-8 w-28"
+                    placeholder="Usar general"
+                    defaultValue={a.precio}
+                    onBlur={(e) => guardarPrecio(a, e.target.value)}
+                  />
+                </div>
+              ))}
+              {articulos.length === 0 && (
+                <p className="text-sm text-gray-400 py-6">
+                  No hay productos ni insumos vendibles.
+                </p>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={!!unidadConfig}

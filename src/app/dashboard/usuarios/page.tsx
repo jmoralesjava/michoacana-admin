@@ -36,6 +36,7 @@ const ROLES = [
   "administrador",
   "fabrica",
   "repartidor",
+  "almacen",
 ];
 
 const coloresRol: Record<string, string> = {
@@ -45,6 +46,7 @@ const coloresRol: Record<string, string> = {
   administrador: "bg-green-50 text-green-700",
   fabrica: "bg-teal-50 text-teal-700",
   repartidor: "bg-orange-50 text-orange-700",
+  almacen: "bg-indigo-50 text-indigo-700",
 };
 
 export default function UsuariosPage() {
