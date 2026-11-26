@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import MapaUbicacion from "@/components/dashboard/MapaUbicacion";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,9 @@ export default function SucursalesPage() {
     tipo: "sucursal",
     proveedor_id: "",
     encargado_id: "",
+    latitud: "",
+    longitud: "",
+    radio_metros: "100",
   });
   const [sucursales, setSucursales] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -185,6 +189,9 @@ export default function SucursalesPage() {
       tipo: u.tipo || "sucursal",
       proveedor_id: u.proveedor_id || "",
       encargado_id: u.encargado_id || "",
+      latitud: u.latitud != null ? String(u.latitud) : "",
+      longitud: u.longitud != null ? String(u.longitud) : "",
+      radio_metros: String(u.radio_metros ?? 100),
     });
   }
 
@@ -197,6 +204,9 @@ export default function SucursalesPage() {
         tipo: config.tipo,
         proveedor_id: config.proveedor_id || null,
         encargado_id: config.encargado_id || null,
+        latitud: config.latitud ? parseFloat(config.latitud) : null,
+        longitud: config.longitud ? parseFloat(config.longitud) : null,
+        radio_metros: parseFloat(config.radio_metros) || 100,
       })
       .eq("id", unidadConfig.id)
       .select("id");
@@ -303,7 +313,7 @@ export default function SucursalesPage() {
               Nueva unidad
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Nueva unidad</DialogTitle>
             </DialogHeader>
@@ -327,14 +337,18 @@ export default function SucursalesPage() {
                 />
               </div>
 
-              <div className="bg-blue-50 rounded-lg p-3">
-                <p className="text-xs text-blue-600 font-medium mb-1">
-                  📍 Coordenadas GPS
-                </p>
-                <p className="text-xs text-blue-500">
-                  Ve físicamente a la sucursal, abre Google Maps, mantén
-                  presionado en tu ubicación y copia las coordenadas.
-                </p>
+              <div className="space-y-1.5">
+                <Label>Ubicación</Label>
+                {dialogOpen && (
+                  <MapaUbicacion
+                    latitud={form.latitud}
+                    longitud={form.longitud}
+                    radio={form.radio_metros}
+                    onCambio={(latitud, longitud) =>
+                      setForm((f) => ({ ...f, latitud, longitud }))
+                    }
+                  />
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -609,7 +623,7 @@ export default function SucursalesPage() {
           if (!v) setUnidadConfig(null);
         }}
       >
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Configurar {unidadConfig?.nombre}</DialogTitle>
           </DialogHeader>
@@ -666,6 +680,29 @@ export default function SucursalesPage() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Ubicación</Label>
+              {unidadConfig && (
+                <MapaUbicacion
+                  latitud={config.latitud}
+                  longitud={config.longitud}
+                  radio={config.radio_metros}
+                  onCambio={(latitud, longitud) =>
+                    setConfig((c) => ({ ...c, latitud, longitud }))
+                  }
+                />
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Radio de asistencia (metros)</Label>
+              <Input
+                type="number"
+                value={config.radio_metros}
+                onChange={(e) =>
+                  setConfig({ ...config, radio_metros: e.target.value })
+                }
+              />
             </div>
             <Button className="w-full" onClick={guardarConfig} disabled={loading}>
               {loading ? "Guardando..." : "Guardar"}
