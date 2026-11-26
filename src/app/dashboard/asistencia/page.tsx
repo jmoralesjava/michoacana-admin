@@ -13,7 +13,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Clock, UserCheck, Camera } from "lucide-react";
+import { Clock, UserCheck, Camera, Pencil } from "lucide-react";
+
+function aCampo(fecha: string | null) {
+  if (!fecha) return "";
+  const d = new Date(fecha);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 
 const PERIODOS = [
   { id: "hoy", label: "Hoy" },
@@ -48,6 +55,83 @@ export default function AsistenciaPage() {
   const [periodo, setPeriodo] = useState("hoy");
   const [loading, setLoading] = useState(false);
   const [fotoUrl, setFotoUrl] = useState<string | null>(null);
+  const [editando, setEditando] = useState<any>(null);
+  const [ajuste, setAjuste] = useState({
+    entrada: "",
+    salida: "",
+    sinRetardo: false,
+    nota: "",
+  });
+  const [guardando, setGuardando] = useState(false);
+
+  function abrirAjuste(j: any) {
+    setEditando(j);
+    setAjuste({
+      entrada: aCampo(j.inicio_at),
+      salida: aCampo(j.fin_at),
+      sinRetardo: false,
+      nota: j.ajuste_nota || "",
+    });
+  }
+
+  async function guardarAjuste() {
+    if (!editando) return;
+    if (!ajuste.entrada) {
+      alert("La hora de entrada es obligatoria");
+      return;
+    }
+    if (!ajuste.nota.trim()) {
+      alert("Escribe el motivo del ajuste");
+      return;
+    }
+    const entrada = new Date(ajuste.entrada);
+    const salida = ajuste.salida ? new Date(ajuste.salida) : null;
+    if (salida && salida <= entrada) {
+      alert("La salida debe ser posterior a la entrada");
+      return;
+    }
+
+    let retardo = 0;
+    if (!ajuste.sinRetardo && editando.hora_entrada_programada) {
+      const [h, m] = String(editando.hora_entrada_programada).split(":").map(Number);
+      const programada = new Date(entrada);
+      programada.setHours(h, m || 0, 0, 0);
+      const tarde = Math.floor((entrada.getTime() - programada.getTime()) / 60000);
+      retardo = tarde > 5 ? tarde : 0;
+    }
+
+    let perfilAdmin: any = null;
+    try {
+      perfilAdmin = JSON.parse(localStorage.getItem("perfil_admin") || "null");
+    } catch {}
+
+    setGuardando(true);
+    const { data, error } = await supabase
+      .from("jornadas")
+      .update({
+        inicio_at: entrada.toISOString(),
+        fin_at: salida ? salida.toISOString() : null,
+        duracion_minutos: salida
+          ? Math.round((salida.getTime() - entrada.getTime()) / 60000)
+          : null,
+        minutos_retardo: retardo,
+        ajuste_nota: ajuste.nota.trim(),
+        ajustado_por: perfilAdmin?.id || null,
+        ajustado_at: new Date().toISOString(),
+      })
+      .eq("id", editando.id)
+      .select("id");
+    setGuardando(false);
+
+    if (error || !data || data.length === 0) {
+      alert(
+        `No se pudo guardar: ${error?.message || "la base no aplicó el cambio (permisos)"}`,
+      );
+      return;
+    }
+    setEditando(null);
+    cargarDatos();
+  }
 
   useEffect(() => {
     cargarDatos();
@@ -236,6 +320,7 @@ export default function AsistenciaPage() {
                   <TableHead>Salida</TableHead>
                   <TableHead>Duración</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -302,6 +387,23 @@ export default function AsistenciaPage() {
                         >
                           {j.fin_at ? "Completada" : "Activa"}
                         </span>
+                        {j.ajuste_nota && (
+                          <span
+                            className="ml-2 text-xs text-amber-600"
+                            title={j.ajuste_nota}
+                          >
+                            Ajustada
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          onClick={() => abrirAjuste(j)}
+                          title="Corregir entrada o salida"
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          <Pencil size={15} />
+                        </button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -311,6 +413,82 @@ export default function AsistenciaPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {editando && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setEditando(null)}
+        >
+          <div
+            className="bg-white rounded-xl w-full max-w-md p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">
+                Corregir jornada
+              </h2>
+              <p className="text-sm text-gray-500">
+                {editando.perfiles?.nombre_completo} {editando.perfiles?.apellido}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4">
+              <label className="space-y-1.5 block">
+                <span className="text-sm font-medium text-gray-700">Entrada</span>
+                <Input
+                  type="datetime-local"
+                  value={ajuste.entrada}
+                  onChange={(e) => setAjuste({ ...ajuste, entrada: e.target.value })}
+                />
+              </label>
+              <label className="space-y-1.5 block">
+                <span className="text-sm font-medium text-gray-700">Salida</span>
+                <Input
+                  type="datetime-local"
+                  value={ajuste.salida}
+                  onChange={(e) => setAjuste({ ...ajuste, salida: e.target.value })}
+                />
+                <span className="text-xs text-gray-400">
+                  Déjala vacía si la jornada sigue activa.
+                </span>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4"
+                  checked={ajuste.sinRetardo}
+                  onChange={(e) =>
+                    setAjuste({ ...ajuste, sinRetardo: e.target.checked })
+                  }
+                />
+                No descontar retardo (permiso con goce de sueldo)
+              </label>
+              <label className="space-y-1.5 block">
+                <span className="text-sm font-medium text-gray-700">
+                  Motivo del ajuste
+                </span>
+                <Input
+                  value={ajuste.nota}
+                  onChange={(e) => setAjuste({ ...ajuste, nota: e.target.value })}
+                  placeholder="Ej. olvidó registrar su salida"
+                  maxLength={200}
+                />
+              </label>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setEditando(null)}
+              >
+                Cancelar
+              </Button>
+              <Button className="flex-1" onClick={guardarAjuste} disabled={guardando}>
+                {guardando ? "Guardando..." : "Guardar"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL FOTO */}
       {fotoUrl && (

@@ -24,9 +24,40 @@ export default function ConfiguracionPage() {
     url: string;
   } | null>(null);
 
+  const [niveles, setNiveles] = useState<any[]>([]);
+  const [guardandoNiveles, setGuardandoNiveles] = useState(false);
+
   useEffect(() => {
     cargarSupervisores();
+    supabase
+      .from("descuento_niveles")
+      .select("*")
+      .order("id")
+      .then(({ data }) => setNiveles(data || []));
   }, []);
+
+  async function guardarNiveles() {
+    setGuardandoNiveles(true);
+    for (const n of niveles) {
+      const { data, error } = await supabase
+        .from("descuento_niveles")
+        .update({
+          porcentaje: parseFloat(n.porcentaje) || 0,
+          compra_minima: parseFloat(n.compra_minima) || 0,
+        })
+        .eq("id", n.id)
+        .select("id");
+      if (error || !data || data.length === 0) {
+        setGuardandoNiveles(false);
+        alert(
+          `No se pudo guardar: ${error?.message || "la base no aplicó el cambio (permisos)"}`,
+        );
+        return;
+      }
+    }
+    setGuardandoNiveles(false);
+    alert("Descuentos guardados");
+  }
 
   async function cargarSupervisores() {
     const { data } = await supabase
@@ -74,6 +105,54 @@ export default function ConfiguracionPage() {
           Gestión de QR y parámetros del sistema
         </p>
       </div>
+
+      {niveles.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 p-5 mb-6 max-w-xl">
+          <h2 className="text-base font-semibold text-gray-900">
+            Descuentos que puede autorizar el supervisor
+          </h2>
+          <p className="text-xs text-gray-400 mt-0.5 mb-4">
+            Tres porcentajes, cada uno con la compra mínima para aplicarlo
+          </p>
+          <div className="space-y-3">
+            {niveles.map((n, i) => (
+              <div key={n.id} className="flex items-end gap-3">
+                <div className="space-y-1.5 w-28">
+                  <Label>Descuento %</Label>
+                  <Input
+                    type="number"
+                    value={n.porcentaje}
+                    onChange={(e) =>
+                      setNiveles(
+                        niveles.map((x, j) =>
+                          j === i ? { ...x, porcentaje: e.target.value } : x,
+                        ),
+                      )
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5 flex-1">
+                  <Label>Compra mínima $</Label>
+                  <Input
+                    type="number"
+                    value={n.compra_minima}
+                    onChange={(e) =>
+                      setNiveles(
+                        niveles.map((x, j) =>
+                          j === i ? { ...x, compra_minima: e.target.value } : x,
+                        ),
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <Button className="mt-4" onClick={guardarNiveles} disabled={guardandoNiveles}>
+            {guardandoNiveles ? "Guardando..." : "Guardar descuentos"}
+          </Button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* QR CODES */}

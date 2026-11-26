@@ -43,6 +43,55 @@ export default function CortesPage() {
   const [loading, setLoading] = useState(false);
   const [fallo, setFallo] = useState("");
   const [corteActivo, setCorteActivo] = useState<any>(null);
+  const [productividad, setProductividad] = useState<any[]>([]);
+  const [cargandoProd, setCargandoProd] = useState(false);
+
+  useEffect(() => {
+    if (!corteActivo) {
+      setProductividad([]);
+      return;
+    }
+    cargarProductividad(corteActivo);
+  }, [corteActivo]);
+
+  async function cargarProductividad(corte: any) {
+    setCargandoProd(true);
+    const { data } = await supabase
+      .from("ordenes")
+      .select("vendedor_id, total, total_con_descuento")
+      .eq("sucursal_id", corte.sucursal_id)
+      .eq("estado", "cerrada")
+      .gte("cerrada_at", corte.abierto_at)
+      .lte("cerrada_at", corte.cerrado_at);
+
+    const porVendedor: Record<string, { ventas: number; ordenes: number }> = {};
+    for (const o of data || []) {
+      const id = o.vendedor_id || "sin";
+      porVendedor[id] ||= { ventas: 0, ordenes: 0 };
+      porVendedor[id].ventas += Number(o.total_con_descuento ?? o.total) || 0;
+      porVendedor[id].ordenes += 1;
+    }
+
+    const ids = Object.keys(porVendedor).filter((id) => id !== "sin");
+    const { data: nombres } = ids.length
+      ? await supabase.from("perfiles").select("id, nombre_completo").in("id", ids)
+      : { data: [] as any[] };
+
+    setProductividad(
+      Object.entries(porVendedor)
+        .map(([id, v]) => ({
+          id,
+          nombre:
+            (nombres || []).find((n: any) => n.id === id)?.nombre_completo ||
+            "Sin vendedor",
+          ventas: v.ventas,
+          ordenes: v.ordenes,
+          promedio: v.ordenes ? v.ventas / v.ordenes : 0,
+        }))
+        .sort((a, b) => b.ventas - a.ventas),
+    );
+    setCargandoProd(false);
+  }
   const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -396,6 +445,49 @@ export default function CortesPage() {
                     {Number(corteActivo.diferencia || 0).toFixed(2)}
                   </span>
                 </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-4 mt-4">
+                <p className="text-sm font-semibold text-gray-900">
+                  Productividad por vendedor
+                </p>
+                <p className="text-xs text-gray-400 mb-3">
+                  Ventas cobradas en la sucursal durante este turno
+                </p>
+                {cargandoProd ? (
+                  <p className="text-sm text-gray-400">Calculando...</p>
+                ) : productividad.length === 0 ? (
+                  <p className="text-sm text-gray-400">
+                    No hubo ventas en este turno.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {productividad.map((v, i) => {
+                      const maximo = productividad[0].ventas || 1;
+                      return (
+                        <div key={v.id}>
+                          <div className="flex items-baseline justify-between gap-3 text-sm">
+                            <span className="font-medium text-gray-900 truncate">
+                              {i + 1}. {v.nombre}
+                            </span>
+                            <span className="font-semibold text-gray-900 shrink-0">
+                              ${v.ventas.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="mt-1 h-2.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${i === 0 ? "bg-green-500" : "bg-gray-400"}`}
+                              style={{ width: `${Math.max(3, (v.ventas / maximo) * 100)}%` }}
+                            />
+                          </div>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {v.ordenes} ventas, ticket promedio ${v.promedio.toFixed(2)}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}
