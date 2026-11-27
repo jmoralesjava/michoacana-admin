@@ -67,6 +67,7 @@ export default function UsuariosPage() {
     domicilio: "",
     salario_diario: "",
     tipo_pago: "diario",
+    es_dueno: false,
   });
   const [horario, setHorario] = useState({
     hora_entrada: "",
@@ -181,6 +182,7 @@ export default function UsuariosPage() {
       domicilio: u.domicilio || "",
       salario_diario: u.salario_diario != null ? String(u.salario_diario) : "",
       tipo_pago: u.tipo_pago || "diario",
+      es_dueno: !!u.es_dueno,
     });
   }
 
@@ -221,6 +223,7 @@ export default function UsuariosPage() {
         domicilio: formEdit.domicilio.trim() || null,
         salario_diario: parseFloat(formEdit.salario_diario) || 0,
         tipo_pago: formEdit.tipo_pago,
+        es_dueno: formEdit.es_dueno,
       })
       .eq("id", usuarioEditando.id)
       .select("id");
@@ -760,6 +763,23 @@ export default function UsuariosPage() {
                 </SelectContent>
               </Select>
             </div>
+            <label className="flex items-start gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                className="w-4 h-4 mt-0.5"
+                checked={formEdit.es_dueno}
+                onChange={(e) =>
+                  setFormEdit({ ...formEdit, es_dueno: e.target.checked })
+                }
+              />
+              <span>
+                Es dueño
+                <span className="block text-xs text-gray-400">
+                  Puede cargar consumos a su cuenta con su NIP o QR. La sucursal
+                  recibe una nota de crédito.
+                </span>
+              </span>
+            </label>
             <p className="text-xs text-gray-400">
               El correo y la contraseña de acceso no se cambian desde aquí.
             </p>

@@ -16,6 +16,11 @@ export default function ClienteMenuPage() {
   const [pedidoEnviado, setPedidoEnviado] = useState(false);
   const [verCarrito, setVerCarrito] = useState(false);
   const [notas, setNotas] = useState("");
+  const [insumos, setInsumos] = useState<any[]>([]);
+  const [falloEnvio, setFalloEnvio] = useState("");
+  const [pedidosCreados, setPedidosCreados] = useState(1);
+  const [unidadFabrica, setUnidadFabrica] = useState<string | null>(null);
+  const [unidadAlmacen, setUnidadAlmacen] = useState<string | null>(null);
 
   useEffect(() => {
     const session = localStorage.getItem("cliente_session");
@@ -38,14 +43,59 @@ export default function ClienteMenuPage() {
       .select("*")
       .eq("activa", true)
       .order("orden");
-    if (data) {
-      setCategorias(data);
-      if (data.length > 0) setCategoriaActiva(data[0].id);
+    const { data: unidades } = await supabase
+      .from("sucursales")
+      .select("id, tipo")
+      .in("tipo", ["fabrica", "almacen_general"]);
+    const fabrica = unidades?.find((u) => u.tipo === "fabrica")?.id || null;
+    const almacen =
+      unidades?.find((u) => u.tipo === "almacen_general")?.id || null;
+    setUnidadFabrica(fabrica);
+    setUnidadAlmacen(almacen);
+
+    let listaInsumos: any[] = [];
+    if (almacen) {
+      const [ins, precios] = await Promise.all([
+        supabase.from("insumos").select("*").eq("se_vende", true).order("nombre"),
+        supabase
+          .from("precios_unidad")
+          .select("insumo_id, precio")
+          .eq("unidad_id", almacen)
+          .not("insumo_id", "is", null),
+      ]);
+      listaInsumos = (ins.data || [])
+        .map((i) => {
+          const propio = precios.data?.find((x) => x.insumo_id === i.id);
+          const factor = Number(i.factor_conversion);
+          return {
+            id: i.id,
+            esInsumo: true,
+            nombre: i.nombre,
+            precio: propio ? Number(propio.precio) : i.precio_venta,
+            unidad_medida: i.unidad_medida,
+            presentacion_nombre: factor > 1 ? i.unidad_compra : null,
+            presentacion_cantidad: factor > 1 ? factor : null,
+            producto_variantes: [],
+          };
+        })
+        .filter((i) => i.precio != null);
+      setInsumos(listaInsumos);
     }
+
+    const cats = [
+      ...(data || []),
+      ...(listaInsumos.length > 0 ? [{ id: "insumos", nombre: "Insumos" }] : []),
+    ];
+    setCategorias(cats);
+    if (cats.length > 0) setCategoriaActiva(cats[0].id);
     setLoading(false);
   }
 
   async function cargarProductos(catId: string) {
+    if (catId === "insumos") {
+      setProductos(insumos);
+      return;
+    }
     const { data } = await supabase
       .from("productos")
       .select("*, producto_variantes(*)")
@@ -66,7 +116,7 @@ export default function ClienteMenuPage() {
   ) {
     const precio = variante ? Number(variante.precio) : Number(producto.precio);
     const precioFinal = precioConDescuento(precio);
-    const id = `${producto.id}-${variante?.id || "base"}`;
+    const id = `${producto.esInsumo ? "insumo-" : ""}${producto.id}-${variante?.id || "base"}`;
     const espresentacion = cantidadInicial > 1;
 
     setCarrito((prev) => {
@@ -80,7 +130,9 @@ export default function ClienteMenuPage() {
         ...prev,
         {
           id,
-          producto_id: producto.id,
+          producto_id: producto.esInsumo ? null : producto.id,
+          insumo_id: producto.esInsumo ? producto.id : null,
+          unidad_medida: producto.esInsumo ? producto.unidad_medida : null,
           variante_id: variante?.id || null,
           nombre: producto.nombre,
           variante_nombre: variante?.nombre || null,
@@ -118,6 +170,7 @@ export default function ClienteMenuPage() {
   async function enviarPedido() {
     if (carrito.length === 0) return;
     setEnviando(true);
+    setFalloEnvio("");
 
     // Solicitar ubicación
     let latitud = null;
@@ -150,35 +203,65 @@ export default function ClienteMenuPage() {
       // Si no da permiso continuamos sin coordenadas
     }
 
-    const { data: pedido, error } = await supabase
-      .from("pedidos_cliente")
-      .insert({
-        cliente_id: cliente.id,
-        estado: "enviado",
-        total: totalCarrito,
-        notas: notas.trim() || null,
-      })
-      .select()
-      .single();
+    const grupos = [
+      { unidad: unidadFabrica, items: carrito.filter((i) => !i.insumo_id) },
+      { unidad: unidadAlmacen, items: carrito.filter((i) => i.insumo_id) },
+    ].filter((g) => g.items.length > 0);
 
-    if (error || !pedido) {
-      setEnviando(false);
-      return;
+    for (const grupo of grupos) {
+      const { data: pedido, error } = await supabase
+        .from("pedidos_cliente")
+        .insert({
+          cliente_id: cliente.id,
+          estado: "enviado",
+          total: grupo.items.reduce(
+            (s, i) => s + i.precio_con_descuento * i.cantidad,
+            0,
+          ),
+          notas: notas.trim() || null,
+          vendedor_unidad_id: grupo.unidad,
+        })
+        .select()
+        .single();
+
+      if (error || !pedido) {
+        setEnviando(false);
+        setFalloEnvio(
+          "No se pudo enviar tu pedido. Revisa tu conexión e intenta de nuevo.",
+        );
+        return;
+      }
+
+      const { error: errorItems } = await supabase.from("pedido_items").insert(
+        grupo.items.map((item) => ({
+          pedido_id: pedido.id,
+          producto_id: item.producto_id,
+          insumo_id: item.insumo_id,
+          unidad_solicitada: item.unidad_medida,
+          variante_id: item.variante_id,
+          nombre_producto: item.nombre,
+          nombre_variante: item.variante_nombre,
+          cantidad: item.cantidad,
+          precio_unitario: item.precio_unitario,
+          precio_con_descuento: item.precio_con_descuento,
+          precio_unitario_base: item.precio_unitario,
+        })),
+      );
+
+      if (errorItems) {
+        await supabase.from("pedidos_cliente").delete().eq("id", pedido.id);
+        setEnviando(false);
+        setFalloEnvio(
+          "No se pudo enviar tu pedido. Revisa tu conexión e intenta de nuevo.",
+        );
+        return;
+      }
+
+      const enviados = grupo.items.map((i) => i.id);
+      setCarrito((prev) => prev.filter((i) => !enviados.includes(i.id)));
     }
 
-    for (const item of carrito) {
-      await supabase.from("pedido_items").insert({
-        pedido_id: pedido.id,
-        producto_id: item.producto_id,
-        variante_id: item.variante_id,
-        nombre_producto: item.nombre,
-        nombre_variante: item.variante_nombre,
-        cantidad: item.cantidad,
-        precio_unitario: item.precio_unitario,
-        precio_con_descuento: item.precio_con_descuento,
-      });
-    }
-
+    setPedidosCreados(grupos.length);
     setEnviando(false);
     setPedidoEnviado(true);
     setCarrito([]);
@@ -198,6 +281,12 @@ export default function ClienteMenuPage() {
             Tu pedido fue recibido. Te avisaremos por WhatsApp cuando esté
             listo.
           </p>
+          {pedidosCreados > 1 && (
+            <p className="text-sm text-gray-500 mb-6 -mt-3">
+              Se registró en dos pedidos porque los productos salen de la
+              fábrica y los insumos del almacén.
+            </p>
+          )}
           <button
             onClick={() => {
               setPedidoEnviado(false);
@@ -280,8 +369,16 @@ export default function ClienteMenuPage() {
                   key={p.id}
                   className="bg-white rounded-2xl border border-gray-100 overflow-hidden"
                 >
-                  <div className="h-28 bg-gradient-to-br from-pink-50 to-pink-100 flex items-center justify-center">
-                    <span className="text-4xl">🍦</span>
+                  <div className="h-28 bg-gradient-to-br from-pink-50 to-pink-100 flex items-center justify-center overflow-hidden">
+                    {p.imagen_url ? (
+                      <img
+                        src={p.imagen_url}
+                        alt={p.nombre}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-4xl">{p.esInsumo ? "📦" : "🍦"}</span>
+                    )}
                   </div>
                   <div className="p-3">
                     <p className="text-sm font-medium text-gray-900 mb-1">
@@ -323,7 +420,8 @@ export default function ClienteMenuPage() {
                           onClick={() => agregarAlCarrito(p)}
                           className="w-full bg-gray-900 text-white rounded-lg py-1.5 text-xs font-medium"
                         >
-                          + Pieza — ${precioFinal.toFixed(2)}
+                          + {p.esInsumo ? p.unidad_medida : "Pieza"} — $
+                          {precioFinal.toFixed(2)}
                         </button>
                         {p.presentacion_nombre && p.presentacion_cantidad && (
                           <button
@@ -333,7 +431,7 @@ export default function ClienteMenuPage() {
                             className="w-full bg-gray-100 text-gray-700 rounded-lg py-1.5 text-xs font-medium"
                           >
                             + {p.presentacion_nombre} ({p.presentacion_cantidad}{" "}
-                            pzas) — $
+                            {p.esInsumo ? p.unidad_medida : "pzas"}) — $
                             {(precioFinal * p.presentacion_cantidad).toFixed(2)}
                           </button>
                         )}
@@ -428,6 +526,15 @@ export default function ClienteMenuPage() {
                   ${totalCarrito.toFixed(2)}
                 </span>
               </div>
+
+              {carrito.some((i) => i.insumo_id) &&
+                carrito.some((i) => !i.insumo_id) && (
+                  <p className="text-xs text-gray-500">
+                    Los insumos los surte el almacén y los productos la fábrica,
+                    así que se registran como dos pedidos.
+                  </p>
+                )}
+              {falloEnvio && <p className="text-sm text-red-600">{falloEnvio}</p>}
 
               <button
                 onClick={enviarPedido}

@@ -21,6 +21,7 @@ export default function CuentasPage() {
   const [unidades, setUnidades] = useState<any[]>([]);
   const [pedidos, setPedidos] = useState<any[]>([]);
   const [pagos, setPagos] = useState<any[]>([]);
+  const [notas, setNotas] = useState<any[]>([]);
   const [filtro, setFiltro] = useState("todas");
   const [soloSaldo, setSoloSaldo] = useState(true);
   const [cargando, setCargando] = useState(true);
@@ -28,7 +29,7 @@ export default function CuentasPage() {
 
   useEffect(() => {
     async function cargar() {
-      const [u, p, g] = await Promise.all([
+      const [u, p, g, n] = await Promise.all([
         supabase.from("sucursales").select("id, nombre, tipo").order("nombre"),
         supabase
           .from("pedidos_cliente")
@@ -42,7 +43,13 @@ export default function CuentasPage() {
           .select("*")
           .order("created_at", { ascending: false })
           .limit(30),
+        supabase
+          .from("notas_credito")
+          .select("*, dueno:autorizado_por(nombre_completo)")
+          .order("created_at", { ascending: false })
+          .limit(500),
       ]);
+      setNotas(n.data || []);
       setFallo(p.error?.message || g.error?.message || "");
       setUnidades(u.data || []);
       setPedidos(p.data || []);
@@ -73,10 +80,15 @@ export default function CuentasPage() {
           porPagar: pedidos
             .filter((p) => p.sucursal_id === u.id)
             .reduce((s, p) => s + Math.max(0, saldo(p)), 0),
+          credito: notas
+            .filter((n) => n.unidad_id === u.id)
+            .reduce((s, n) => s + Number(n.saldo || 0), 0),
         }))
-        .filter((r) => r.porCobrar > 0.009 || r.porPagar > 0.009),
+        .filter(
+          (r) => r.porCobrar > 0.009 || r.porPagar > 0.009 || r.credito > 0.009,
+        ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [unidades, pedidos],
+    [unidades, pedidos, notas],
   );
 
   const visibles = pedidos.filter((p) => {
@@ -118,6 +130,7 @@ export default function CuentasPage() {
               <TableHead>Unidad</TableHead>
               <TableHead className="text-right">Le deben (por cobrar)</TableHead>
               <TableHead className="text-right">Debe (por pagar)</TableHead>
+              <TableHead className="text-right">Crédito del dueño</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -132,11 +145,14 @@ export default function CuentasPage() {
                 >
                   {pesos(r.porPagar)}
                 </TableCell>
+                <TableCell className="text-right text-gray-700">
+                  {pesos(r.credito)}
+                </TableCell>
               </TableRow>
             ))}
             {resumen.length === 0 && (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-gray-400 py-8">
+                <TableCell colSpan={4} className="text-center text-gray-400 py-8">
                   {cargando ? "Cargando..." : "No hay saldos pendientes."}
                 </TableCell>
               </TableRow>
@@ -249,7 +265,7 @@ export default function CuentasPage() {
                     {p ? nombreUnidad(p.vendedor_unidad_id) : "—"}
                   </TableCell>
                   <TableCell className="text-sm text-gray-600 capitalize">
-                    {g.metodo}
+                    {g.metodo === "nota_credito" ? "Nota de crédito" : g.metodo}
                   </TableCell>
                   <TableCell className="text-right font-medium text-gray-900">
                     {pesos(Number(g.monto))}
@@ -261,6 +277,59 @@ export default function CuentasPage() {
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-gray-400 py-8">
                   Aún no hay pagos registrados.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <h2 className="text-base font-semibold text-gray-900 mt-8 mb-1">
+        Consumos del dueño
+      </h2>
+      <p className="text-sm text-gray-400 mb-3">
+        Cada consumo genera una nota de crédito a favor de la unidad, que se
+        descuenta de lo que debe por su surtido.
+      </p>
+      <div className="bg-white rounded-xl border border-gray-100 overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nota</TableHead>
+              <TableHead>Fecha</TableHead>
+              <TableHead>Unidad</TableHead>
+              <TableHead>Autorizó</TableHead>
+              <TableHead className="text-right">Consumo</TableHead>
+              <TableHead className="text-right">Por aplicar</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {notas.map((n) => (
+              <TableRow key={n.id}>
+                <TableCell className="text-sm text-gray-500">NC-{n.folio}</TableCell>
+                <TableCell className="text-sm text-gray-500">
+                  {new Date(n.created_at).toLocaleString("es-MX")}
+                </TableCell>
+                <TableCell className="text-gray-900">
+                  {nombreUnidad(n.unidad_id)}
+                </TableCell>
+                <TableCell className="text-gray-900">
+                  {n.dueno?.nombre_completo || "—"}
+                </TableCell>
+                <TableCell className="text-right text-gray-700">
+                  {pesos(Number(n.monto))}
+                </TableCell>
+                <TableCell
+                  className={`text-right font-medium ${Number(n.saldo) > 0.009 ? "text-amber-700" : "text-green-700"}`}
+                >
+                  {pesos(Number(n.saldo))}
+                </TableCell>
+              </TableRow>
+            ))}
+            {notas.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center text-gray-400 py-8">
+                  Aún no hay consumos del dueño.
                 </TableCell>
               </TableRow>
             )}
