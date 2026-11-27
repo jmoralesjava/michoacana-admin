@@ -19,7 +19,7 @@ import {
   UserCheck,
   DollarSign,
   ShoppingCart,
-  Receipt, Truck, Star, ClipboardList,
+  Receipt, Truck, Star, ClipboardList, ArrowLeftRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +30,7 @@ const navItems = [
   { href: "/dashboard/catalogo", label: "Catálogo", icon: ShoppingBag },
   { href: "/dashboard/insumos", label: "Insumos", icon: Package },
   { href: "/dashboard/inventario", label: "Inventario", icon: ClipboardList },
+  { href: "/dashboard/cuentas", label: "Cuentas", icon: ArrowLeftRight },
   { href: "/dashboard/fabrica", label: "Fábrica", icon: Factory },
   { href: "/dashboard/reportes", label: "Reportes", icon: BarChart3 },
   { href: "/dashboard/asistencia", label: "Asistencia", icon: UserCheck },
