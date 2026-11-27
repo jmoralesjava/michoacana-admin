@@ -37,6 +37,7 @@ const formVacio = {
   tiene_variantes: "false",
   presentacion_nombre: "",
   presentacion_cantidad: "",
+  se_prepara_en_sucursal: false,
 };
 
 function reducirImagen(file: File): Promise<Blob> {
@@ -166,6 +167,7 @@ export default function CatalogoPage() {
       tiene_variantes: producto.tiene_variantes ? "true" : "false",
       presentacion_nombre: producto.presentacion_nombre || "",
       presentacion_cantidad: producto.presentacion_cantidad?.toString() || "",
+      se_prepara_en_sucursal: !!producto.se_prepara_en_sucursal,
     });
     setDialogProducto(true);
   }
@@ -250,6 +252,7 @@ export default function CatalogoPage() {
       presentacion_nombre: formProducto.presentacion_nombre || null,
       presentacion_cantidad:
         parseInt(formProducto.presentacion_cantidad) || null,
+      se_prepara_en_sucursal: formProducto.se_prepara_en_sucursal,
     };
 
     if (imagenArchivo) {
@@ -499,6 +502,26 @@ export default function CatalogoPage() {
               caja
             </p>
           </div>
+          <label className="flex items-start gap-2 text-sm text-gray-700 border-t border-gray-100 pt-4">
+            <input
+              type="checkbox"
+              className="w-4 h-4 mt-0.5"
+              checked={formProducto.se_prepara_en_sucursal}
+              onChange={(e) =>
+                setFormProducto({
+                  ...formProducto,
+                  se_prepara_en_sucursal: e.target.checked,
+                })
+              }
+            />
+            <span>
+              Se prepara en la sucursal
+              <span className="block text-xs text-gray-400">
+                Ej. nachos preparados. No lleva existencia de producto
+                terminado; al venderse descuenta sus insumos de la sucursal.
+              </span>
+            </span>
+          </label>
           <div className="border-t border-gray-100 pt-4">
             <p className="text-xs font-medium text-gray-500 mb-3 uppercase tracking-wide">
               Imagen (opcional)

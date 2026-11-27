@@ -146,7 +146,7 @@ export default function MenuPublico() {
 
   useEffect(() => {
     async function cargar() {
-      const [suc, cats, prods, vars, tops] = await Promise.all([
+      const [suc, cats, prods, vars, tops, propios] = await Promise.all([
         supabase.from("sucursales").select("id, nombre").eq("id", sucursalId).maybeSingle(),
         supabase.from("categorias").select("id, nombre").eq("activa", true).order("orden"),
         supabase
@@ -164,6 +164,10 @@ export default function MenuPublico() {
         supabase
           .from("producto_toppings")
           .select("producto_id, toppings(id, nombre, precio_extra)"),
+        supabase
+          .from("productos_unidad")
+          .select("producto_id")
+          .eq("unidad_id", sucursalId),
       ]);
 
       if (suc.error || !suc.data) {
@@ -187,8 +191,13 @@ export default function MenuPublico() {
         if (t) (extrasPorProducto[fila.producto_id] ||= []).push(t);
       }
 
+      const permitidos = new Set(
+        ((propios.data || []) as any[]).map((r) => r.producto_id),
+      );
       const lista = ((prods.data || []) as Producto[]).filter(
-        (p) => !p.tiene_variantes || (porProducto[p.id] || []).length > 0,
+        (p) =>
+          (permitidos.size === 0 || permitidos.has(p.id)) &&
+          (!p.tiene_variantes || (porProducto[p.id] || []).length > 0),
       );
       const conProductos = new Set(lista.map((p) => p.categoria_id));
 

@@ -44,7 +44,12 @@ export default function SucursalesPage() {
     latitud: "",
     longitud: "",
     radio_metros: "100",
+    controla_existencias: false,
   });
+  const [unidadCatalogo, setUnidadCatalogo] = useState<any>(null);
+  const [productosCat, setProductosCat] = useState<any[]>([]);
+  const [elegidos, setElegidos] = useState<Set<string>>(new Set());
+  const [todoCatalogo, setTodoCatalogo] = useState(true);
   const [sucursales, setSucursales] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -192,7 +197,58 @@ export default function SucursalesPage() {
       latitud: u.latitud != null ? String(u.latitud) : "",
       longitud: u.longitud != null ? String(u.longitud) : "",
       radio_metros: String(u.radio_metros ?? 100),
+      controla_existencias: !!u.controla_existencias,
     });
+  }
+
+  async function abrirCatalogo(u: any) {
+    setUnidadCatalogo(u);
+    const [prods, propios] = await Promise.all([
+      supabase
+        .from("productos")
+        .select("id, nombre, categorias(nombre)")
+        .eq("activo", true)
+        .order("nombre"),
+      supabase.from("productos_unidad").select("producto_id").eq("unidad_id", u.id),
+    ]);
+    const ids = (propios.data || []).map((r: any) => r.producto_id);
+    setProductosCat(prods.data || []);
+    setElegidos(new Set(ids));
+    setTodoCatalogo(ids.length === 0);
+  }
+
+  async function guardarCatalogo() {
+    if (!unidadCatalogo) return;
+    if (!todoCatalogo && elegidos.size === 0) {
+      alert("Marca al menos un producto, o elige vender todo el catálogo");
+      return;
+    }
+    setLoading(true);
+    const borrado = await supabase
+      .from("productos_unidad")
+      .delete()
+      .eq("unidad_id", unidadCatalogo.id);
+    let fallo = borrado.error?.message || "";
+    if (!fallo && !todoCatalogo) {
+      const alta = await supabase
+        .from("productos_unidad")
+        .insert(
+          [...elegidos].map((producto_id) => ({
+            unidad_id: unidadCatalogo.id,
+            producto_id,
+          })),
+        )
+        .select("producto_id");
+      if (alta.error || !alta.data || alta.data.length === 0) {
+        fallo = alta.error?.message || "la base no aplicó el cambio (permisos)";
+      }
+    }
+    setLoading(false);
+    if (fallo) {
+      alert(`No se pudo guardar: ${fallo}`);
+      return;
+    }
+    setUnidadCatalogo(null);
   }
 
   async function guardarConfig() {
@@ -207,6 +263,7 @@ export default function SucursalesPage() {
         latitud: config.latitud ? parseFloat(config.latitud) : null,
         longitud: config.longitud ? parseFloat(config.longitud) : null,
         radio_metros: parseFloat(config.radio_metros) || 100,
+        controla_existencias: config.controla_existencias,
       })
       .eq("id", unidadConfig.id)
       .select("id");
@@ -556,6 +613,14 @@ export default function SucursalesPage() {
               >
                 Configurar
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 text-xs"
+                onClick={() => abrirCatalogo(s)}
+              >
+                Catálogo
+              </Button>
               {s.tipo && s.tipo !== "sucursal" && (
                 <Button
                   variant="outline"
@@ -570,6 +635,57 @@ export default function SucursalesPage() {
           </div>
         ))}
       </div>
+
+      <Dialog
+        open={!!unidadCatalogo}
+        onOpenChange={(v) => {
+          if (!v) setUnidadCatalogo(null);
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Qué vende {unidadCatalogo?.nombre}</DialogTitle>
+          </DialogHeader>
+          <label className="flex items-center gap-2 text-sm text-gray-900">
+            <input
+              type="checkbox"
+              className="w-4 h-4"
+              checked={todoCatalogo}
+              onChange={(e) => setTodoCatalogo(e.target.checked)}
+            />
+            Vende todo el catálogo
+          </label>
+          {!todoCatalogo && (
+            <div className="divide-y divide-gray-100">
+              {productosCat.map((p) => (
+                <label
+                  key={p.id}
+                  className="flex items-center gap-3 py-2 text-sm text-gray-900"
+                >
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4"
+                    checked={elegidos.has(p.id)}
+                    onChange={(e) => {
+                      const nuevo = new Set(elegidos);
+                      if (e.target.checked) nuevo.add(p.id);
+                      else nuevo.delete(p.id);
+                      setElegidos(nuevo);
+                    }}
+                  />
+                  <span className="flex-1">{p.nombre}</span>
+                  <span className="text-xs text-gray-400">
+                    {p.categorias?.nombre}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+          <Button className="w-full" onClick={guardarCatalogo} disabled={loading}>
+            {loading ? "Guardando..." : "Guardar catálogo"}
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={!!unidadPrecios}
@@ -681,6 +797,23 @@ export default function SucursalesPage() {
                 ))}
               </select>
             </div>
+            <label className="flex items-start gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                className="w-4 h-4 mt-0.5"
+                checked={config.controla_existencias}
+                onChange={(e) =>
+                  setConfig({ ...config, controla_existencias: e.target.checked })
+                }
+              />
+              <span>
+                Controlar existencias
+                <span className="block text-xs text-gray-400">
+                  No permite vender productos sin stock; se muestran como
+                  agotados. Actívalo cuando esta unidad ya tenga su conteo.
+                </span>
+              </span>
+            </label>
             <div className="space-y-1.5">
               <Label>Ubicación</Label>
               {unidadConfig && (
